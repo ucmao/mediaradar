@@ -10,15 +10,26 @@ export interface CrawlerConfig {
   enable_sub_comments: boolean
   cookies: string
   headless: boolean
+  loop_execution: boolean
 }
 
-export interface CrawlerStatus {
+export interface PlatformState {
   status: 'idle' | 'running' | 'stopping' | 'error'
-  platform: string | null
+  platform: string
   crawler_type: string | null
   started_at: string | null
   error_message: string | null
   run_id: string | null
+}
+
+export interface CrawlerStatus {
+  status: 'idle' | 'running' | 'stopping' | 'error'
+  platform?: string | null
+  crawler_type?: string | null
+  started_at?: string | null
+  error_message?: string | null
+  run_id?: string | null
+  platform_states?: { [platform: string]: PlatformState }
 }
 
 export interface LogEntry {
@@ -26,6 +37,7 @@ export interface LogEntry {
   timestamp: string
   level: 'info' | 'warning' | 'error' | 'success' | 'debug'
   message: string
+  platform?: string
 }
 
 export interface Platform {

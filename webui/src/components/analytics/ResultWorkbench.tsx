@@ -254,7 +254,14 @@ function ContentCommentsDialog({ content, runId, onOpenChange }: {
 
 export function ResultWorkbench() {
   const queryClient = useQueryClient()
-  const crawlerStatus = useCrawlerStore((state) => state.status)
+  const statuses = useCrawlerStore((state) => state.statuses)
+  const crawlerStatus = Object.values(statuses).some((s) => s === 'running')
+    ? 'running'
+    : Object.values(statuses).some((s) => s === 'stopping')
+    ? 'stopping'
+    : Object.values(statuses).some((s) => s === 'error')
+    ? 'error'
+    : 'idle'
   const previousCrawlerStatus = useRef(crawlerStatus)
   const [runId, setRunId] = useState('all')
   const [platform, setPlatform] = useState('all')
@@ -418,18 +425,40 @@ export function ResultWorkbench() {
                   className="h-8 pl-8 text-xs"
                 />
               </div>
+            <div
+              className={`group relative rounded-md border transition-colors ${
+                runId === 'all'
+                  ? 'border-cyber-neon-cyan bg-cyber-neon-cyan/10'
+                  : 'border-cyber-border-subtle hover:bg-cyber-bg-tertiary/70'
+              }`}
+            >
               <button
                 type="button"
                 onClick={() => setRunId('all')}
-                className={`w-full rounded-md border px-3 py-2.5 text-left transition-colors ${
-                  runId === 'all'
-                    ? 'border-cyber-neon-cyan bg-cyber-neon-cyan/10'
-                    : 'border-cyber-border-subtle hover:bg-cyber-bg-tertiary/70'
-                }`}
+                className="w-full p-2.5 pr-9 text-left"
               >
                 <span className="block text-xs font-medium text-cyber-text-primary">全部任务</span>
                 <span className="mt-0.5 block text-[10px] text-cyber-text-muted">展示各任务中的最新数据</span>
               </button>
+              {runs.some((run) => run.status !== 'running') ? (
+                <DeleteConfirmDialog
+                  title="清空全部任务历史记录？"
+                  description="将清空所有已完成任务及其看板历史记录，但不会删除 SQLite 中的平台原始采集表数据。"
+                  onConfirm={() => deleteRun('all')}
+                  trigger={
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="清空全部任务历史记录"
+                      title="清空全部任务历史记录"
+                      className="absolute right-1 top-1 h-7 w-7 text-cyber-text-muted opacity-0 hover:bg-cyber-neon-pink/10 hover:text-cyber-neon-pink focus:opacity-100 group-hover:opacity-100"
+                    >
+                      <Trash2 />
+                    </Button>
+                  }
+                />
+              ) : null}
+            </div>
             </div>
 
             <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
@@ -768,18 +797,40 @@ export function ResultWorkbench() {
             </div>
 
             <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-              <button
-                type="button"
-                onClick={() => { setRunId('all'); setIsRunHistoryOpen(false) }}
-                className={`w-full rounded-md border p-3 text-left transition-colors ${
+              <div
+                className={`group relative rounded-md border transition-colors ${
                   runId === 'all'
                     ? 'border-cyber-neon-cyan bg-cyber-neon-cyan/10'
                     : 'border-cyber-border-subtle hover:bg-cyber-bg-tertiary/70'
                 }`}
               >
-                <span className="block text-xs font-medium text-cyber-text-primary">全部任务</span>
-                <span className="mt-1 block text-[11px] text-cyber-text-muted">每条内容展示所有任务中的最新数据</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => { setRunId('all'); setIsRunHistoryOpen(false) }}
+                  className="w-full p-3 pr-12 text-left"
+                >
+                  <span className="block text-xs font-medium text-cyber-text-primary">全部任务</span>
+                  <span className="mt-1 block text-[11px] text-cyber-text-muted">每条内容展示所有任务中的最新数据</span>
+                </button>
+                {runs.some((run) => run.status !== 'running') ? (
+                  <DeleteConfirmDialog
+                    title="清空全部任务历史记录？"
+                    description="将清空所有已完成任务及其看板历史记录，但不会删除 SQLite 中的平台原始采集表数据。"
+                    onConfirm={() => deleteRun('all')}
+                    trigger={
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="清空全部任务历史记录"
+                        title="清空全部任务历史记录"
+                        className="absolute right-1.5 top-1.5 h-8 w-8 text-cyber-text-muted hover:bg-cyber-neon-pink/10 hover:text-cyber-neon-pink"
+                      >
+                        <Trash2 />
+                      </Button>
+                    }
+                  />
+                ) : null}
+              </div>
 
               {filteredRuns.map((run) => (
                 <div

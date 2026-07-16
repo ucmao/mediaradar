@@ -9,25 +9,38 @@ const api = axios.create({
 })
 
 // Types
+export interface PlatformState {
+  status: 'idle' | 'running' | 'stopping' | 'error'
+  platform: string
+  crawler_type: string | null
+  started_at: string | null
+  error_message: string | null
+  run_id: string | null
+}
+
+export interface CrawlerStatus {
+  status: 'idle' | 'running' | 'stopping' | 'error'
+  platform?: string | null
+  crawler_type?: string | null
+  started_at?: string | null
+  error_message?: string | null
+  run_id?: string | null
+  platform_states?: { [platform: string]: PlatformState }
+}
+
 export interface CrawlerConfig {
   platform: string
   login_type: string
   crawler_type: string
   keywords: string
+  specified_ids?: string
+  creator_ids?: string
   start_page: number
   enable_comments: boolean
   enable_sub_comments: boolean
   cookies: string
   headless: boolean
-}
-
-export interface CrawlerStatus {
-  status: 'idle' | 'running' | 'stopping' | 'error'
-  platform: string | null
-  crawler_type: string | null
-  started_at: string | null
-  error_message: string | null
-  run_id: string | null
+  loop_execution: boolean
 }
 
 export interface LogEntry {
@@ -35,6 +48,7 @@ export interface LogEntry {
   timestamp: string
   level: 'info' | 'warning' | 'error' | 'success' | 'debug'
   message: string
+  platform?: string
 }
 
 export interface AnalyticsTotals {
@@ -174,9 +188,9 @@ export interface ConfigOption {
 // API functions
 export const crawlerApi = {
   start: (config: CrawlerConfig) => api.post('/crawler/start', config),
-  stop: () => api.post('/crawler/stop'),
-  getStatus: () => api.get<CrawlerStatus>('/crawler/status'),
-  getLogs: (limit = 100) => api.get<{ logs: LogEntry[] }>('/crawler/logs', { params: { limit } }),
+  stop: (platform?: string) => api.post('/crawler/stop', null, { params: { platform } }),
+  getStatus: (platform?: string) => api.get<CrawlerStatus>('/crawler/status', { params: { platform } }),
+  getLogs: (platform?: string, limit = 100) => api.get<{ logs: LogEntry[] }>('/crawler/logs', { params: { platform, limit } }),
 }
 
 export const dataApi = {

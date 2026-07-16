@@ -1,4 +1,4 @@
-# 🔥 MediaRadar - 自媒体平台爬虫 🕷️
+# 🔥 MediaRadar - 自媒体雷达
 
 > **免责声明：**
 > 
@@ -32,35 +32,6 @@
 | 微博   | ✅          | ✅              | ✅        | ✅              | ✅          | ✅        | ✅              |
 | 贴吧   | ✅          | ✅              | ✅        | ✅              | ✅          | ✅        | ✅              |
 | 知乎   | ✅          | ✅              | ✅        | ✅              | ✅          | ✅        | ✅              |
-
-
-
-<strong>MediaRadarPro 重磅发布！开源不易，欢迎订阅支持</strong>
-
-> 专注于学习成熟项目的架构设计，不仅仅是爬虫技术，Pro 版本的代码设计思路同样值得深入学习！
-
-[MediaRadarPro](https://github.com/MediaRadarPro) 相较于开源版本的核心优势：
-
-#### 🎯 核心功能升级
-- ✅ **自媒体内容拆解Agent**（新增功能）
-- ✅ **断点续爬功能**（重点特性）
-- ✅ **多账号 + IP代理池支持**（重点特性）
-- ✅ **去除 Playwright 依赖**，使用更简单
-- ✅ **完整 Linux 环境支持**
-
-#### 🏗️ 架构设计优化
-- ✅ **代码重构优化**，更易读易维护（解耦 JS 签名逻辑）
-- ✅ **企业级代码质量**，适合构建大型爬虫项目
-- ✅ **完美架构设计**，高扩展性，源码学习价值更大
-
-#### 🎁 额外功能
-- ✅ **自媒体视频下载器桌面端**（适合学习全栈开发）
-- ✅ **多平台首页信息流推荐**（HomeFeed）
-- ✅ **AI Agent Skill 支持**（[OpenClaw](https://openclaw.ai/) 🦞 / Claude Code / Cursor 一键安装，让 Agent 自动爬取数据）
-- [ ] **基于评论分析AI Agent正在开发中 🚀🚀**
-
-点击查看：[MediaRadarPro 项目主页](https://github.com/MediaRadarPro) 更多介绍
-
 
 
 ## 🚀 快速开始
@@ -240,12 +211,6 @@ python main.py --help
 
 </details>
 
-
-## 💾 数据保存
-
-MediaRadar 支持多种数据存储方式，包括 CSV、JSON、JSONL、Excel、SQLite 和 MySQL 数据库。
-
-📖 **详细使用说明请查看：[数据存储指南](docs/data_storage_guide.md)**
 
 
 # 免责声明

@@ -6,7 +6,6 @@ import zhCommon from './locales/zh-CN/common.json'
 import zhConfig from './locales/zh-CN/config.json'
 import zhTerminal from './locales/zh-CN/terminal.json'
 import zhEnv from './locales/zh-CN/env.json'
-import zhLicense from './locales/zh-CN/license.json'
 
 const resources = {
   'zh-CN': {
@@ -14,7 +13,6 @@ const resources = {
     config: zhConfig,
     terminal: zhTerminal,
     env: zhEnv,
-    license: zhLicense,
   },
 }
 

@@ -374,8 +374,12 @@ class AnalyticsRepository:
         }
 
     def delete_run(self, run_id: str) -> bool:
-        """Delete one finished crawl run and its content records."""
+        """Delete one or all finished crawl runs and their content records."""
         with self.connect() as connection:
+            if run_id == "all":
+                connection.execute("DELETE FROM crawl_runs WHERE status != 'running'")
+                return True
+
             row = connection.execute(
                 "SELECT status FROM crawl_runs WHERE run_id=?", (run_id,)
             ).fetchone()

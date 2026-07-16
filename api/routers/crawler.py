@@ -16,9 +16,10 @@
 # 详细许可条款请参阅项目根目录下的LICENSE文件。
 # 使用本代码即表示您同意遵守上述原则和LICENSE中的所有条款。
 
+from typing import Optional
 from fastapi import APIRouter, HTTPException
 
-from ..schemas import CrawlerStartRequest, CrawlerStatusResponse
+from ..schemas import CrawlerStartRequest
 from ..services import crawler_manager
 
 router = APIRouter(prefix="/crawler", tags=["crawler"])
@@ -27,41 +28,40 @@ router = APIRouter(prefix="/crawler", tags=["crawler"])
 @router.post("/start")
 async def start_crawler(request: CrawlerStartRequest):
     """Start crawler task"""
+    platform = request.platform.value
     success = await crawler_manager.start(request)
     if not success:
-        # Handle concurrent/duplicate requests: if process is already running, return 400 instead of 500
-        if crawler_manager.process and crawler_manager.process.poll() is None:
-            raise HTTPException(status_code=400, detail="Crawler is already running")
-        raise HTTPException(status_code=500, detail="Failed to start crawler")
+        task_status = crawler_manager.get_status(platform)
+        if task_status["status"] in ("running", "stopping"):
+            raise HTTPException(status_code=400, detail=f"Crawler for {platform} is already running")
+        raise HTTPException(status_code=500, detail=f"Failed to start crawler for {platform}")
 
+    task_status = crawler_manager.get_status(platform)
     return {
         "status": "ok",
-        "message": "Crawler started successfully",
-        "run_id": crawler_manager.current_run_id,
+        "message": f"Crawler for {platform} started successfully",
+        "run_id": task_status["run_id"],
     }
 
 
 @router.post("/stop")
-async def stop_crawler():
+async def stop_crawler(platform: Optional[str] = None):
     """Stop crawler task"""
-    success = await crawler_manager.stop()
+    success = await crawler_manager.stop(platform)
     if not success:
-        # Handle concurrent/duplicate requests: if process already exited/doesn't exist, return 400 instead of 500
-        if not crawler_manager.process or crawler_manager.process.poll() is not None:
-            raise HTTPException(status_code=400, detail="No crawler is running")
-        raise HTTPException(status_code=500, detail="Failed to stop crawler")
+        raise HTTPException(status_code=400, detail="No crawler is running or stop failed")
 
-    return {"status": "ok", "message": "Crawler stopped successfully"}
+    return {"status": "ok", "message": f"Crawler {platform or 'all'} stopped successfully"}
 
 
-@router.get("/status", response_model=CrawlerStatusResponse)
-async def get_crawler_status():
+@router.get("/status")
+async def get_crawler_status(platform: Optional[str] = None):
     """Get crawler status"""
-    return crawler_manager.get_status()
+    return crawler_manager.get_status(platform)
 
 
 @router.get("/logs")
-async def get_logs(limit: int = 100):
+async def get_logs(platform: Optional[str] = None, limit: int = 100):
     """Get recent logs"""
-    logs = crawler_manager.logs[-limit:] if limit > 0 else crawler_manager.logs
+    logs = crawler_manager.get_logs(platform, limit)
     return {"logs": [log.model_dump() for log in logs]}

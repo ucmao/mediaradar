@@ -64,6 +64,7 @@ class CrawlerStartRequest(BaseModel):
     headless: bool = False
     max_notes_count: Optional[int] = Field(default=None, ge=1, le=MAX_API_LIMIT_COUNT)
     max_comments_count: Optional[int] = Field(default=None, ge=1, le=MAX_API_LIMIT_COUNT)
+    loop_execution: bool = False
 
 
 class CrawlerStatusResponse(BaseModel):
@@ -82,3 +83,4 @@ class LogEntry(BaseModel):
     timestamp: str
     level: Literal["info", "warning", "error", "success", "debug"]
     message: str
+    platform: Optional[str] = None

@@ -1,48 +1,56 @@
 import { create } from 'zustand'
 import type { LogEntry, CrawlerConfig } from '@/types/crawler'
 
-interface CrawlerState {
-  // Status
-  status: 'idle' | 'running' | 'stopping' | 'error'
-  platform: string | null
+interface RunningDetails {
   crawlerType: string | null
   startedAt: string | null
+  runId: string | null
+}
 
-  // Logs
-  logs: LogEntry[]
-  clearedAfterLogId: number | null  // 清除日志后，只显示 id 大于此值的日志
+interface CrawlerState {
+  // Statuses by platform
+  statuses: { [platform: string]: 'idle' | 'running' | 'stopping' | 'error' }
+  runningInfo: { [platform: string]: RunningDetails }
 
-  // Config
+  // Logs by platform
+  logs: { [platform: string]: LogEntry[] }
+  clearedAfterLogId: { [platform: string]: number | null }
+
+  // Selection & UI Tab
+  selectedPlatforms: string[]
+  activePlatformTab: string
+
+  // Config template
   config: CrawlerConfig
 
   // Actions
-  setStatus: (status: CrawlerState['status']) => void
-  setRunningInfo: (platform: string | null, crawlerType: string | null, startedAt: string | null) => void
+  setStatus: (platform: string, status: 'idle' | 'running' | 'stopping' | 'error') => void
+  setRunningInfo: (platform: string, crawlerType: string | null, startedAt: string | null, runId: string | null) => void
+  setBulkStatus: (platformStates: { [platform: string]: any }) => void
   addLog: (log: LogEntry) => void
-  setLogs: (logs: LogEntry[]) => void
-  clearLogs: () => void
-  restoreLogs: () => void
+  setLogs: (platform: string, logs: LogEntry[]) => void
+  clearLogs: (platform: string) => void
+  restoreLogs: (platform: string) => void
   updateConfig: (config: Partial<CrawlerConfig>) => void
-  reset: () => void
+  setSelectedPlatforms: (platforms: string[]) => void
+  setActivePlatformTab: (platform: string) => void
+  reset: (platform?: string) => void
 }
 
-// 持久化相关的 localStorage key
-const CLEARED_LOG_ID_KEY = 'mediaradar_cleared_log_id'
+const CLEARED_LOG_ID_PREFIX = 'mediaradar_cleared_log_id_'
 
-// 从 localStorage 读取清除标记
-function getClearedLogIdFromStorage(): number | null {
-  const stored = localStorage.getItem(CLEARED_LOG_ID_KEY)
+function getClearedLogIdFromStorage(platform: string): number | null {
+  const stored = localStorage.getItem(`${CLEARED_LOG_ID_PREFIX}${platform}`)
   if (stored === null) return null
   const value = parseInt(stored, 10)
   return isNaN(value) ? null : value
 }
 
-// 保存清除标记到 localStorage
-function saveClearedLogIdToStorage(id: number | null): void {
+function saveClearedLogIdToStorage(platform: string, id: number | null): void {
   if (id === null) {
-    localStorage.removeItem(CLEARED_LOG_ID_KEY)
+    localStorage.removeItem(`${CLEARED_LOG_ID_PREFIX}${platform}`)
   } else {
-    localStorage.setItem(CLEARED_LOG_ID_KEY, id.toString())
+    localStorage.setItem(`${CLEARED_LOG_ID_PREFIX}${platform}`, id.toString())
   }
 }
 
@@ -58,82 +66,157 @@ const defaultConfig: CrawlerConfig = {
   enable_sub_comments: false,
   cookies: '',
   headless: false,
+  loop_execution: false,
 }
 
+const SUPPORTED_PLATFORMS = ['xhs', 'dy', 'ks', 'bili', 'wb', 'tieba', 'zhihu']
+
+const initialStatuses = SUPPORTED_PLATFORMS.reduce((acc, p) => ({ ...acc, [p]: 'idle' as const }), {})
+const initialRunningInfo = SUPPORTED_PLATFORMS.reduce(
+  (acc, p) => ({ ...acc, [p]: { crawlerType: null, startedAt: null, runId: null } }),
+  {}
+)
+const initialLogs = SUPPORTED_PLATFORMS.reduce((acc, p) => ({ ...acc, [p]: [] }), {})
+const initialClearedLogIds = SUPPORTED_PLATFORMS.reduce(
+  (acc, p) => ({ ...acc, [p]: getClearedLogIdFromStorage(p) }),
+  {}
+)
+
 export const useCrawlerStore = create<CrawlerState>((set, get) => ({
-  status: 'idle',
-  platform: null,
-  crawlerType: null,
-  startedAt: null,
-  logs: [],
-  clearedAfterLogId: getClearedLogIdFromStorage(), // 从 localStorage 初始化
+  statuses: initialStatuses,
+  runningInfo: initialRunningInfo,
+  logs: initialLogs,
+  clearedAfterLogId: initialClearedLogIds,
+  selectedPlatforms: ['bili'],
+  activePlatformTab: 'bili',
   config: defaultConfig,
 
-  setStatus: (status) => {
-    set({ status })
-    // 当开始新的爬虫任务时，清除之前的清除标记
-    if (status === 'running') {
-      const currentClearedId = get().clearedAfterLogId
-      if (currentClearedId !== null) {
-        set({ clearedAfterLogId: null })
-        saveClearedLogIdToStorage(null)
+  setStatus: (platform, status) => {
+    set((state) => {
+      const nextStatuses = { ...state.statuses, [platform]: status }
+      const nextClearedLogId = { ...state.clearedAfterLogId }
+      
+      if (status === 'running') {
+        nextClearedLogId[platform] = null
+        saveClearedLogIdToStorage(platform, null)
       }
-    }
+      
+      return {
+        statuses: nextStatuses,
+        clearedAfterLogId: nextClearedLogId,
+      }
+    })
   },
 
-  setRunningInfo: (platform, crawlerType, startedAt) => {
-    set({ platform, crawlerType, startedAt })
-    // 当设置新的运行信息时，也清除之前的清除标记
-    if (startedAt !== null) {
-      const currentClearedId = get().clearedAfterLogId
-      if (currentClearedId !== null) {
-        set({ clearedAfterLogId: null })
-        saveClearedLogIdToStorage(null)
+  setRunningInfo: (platform, crawlerType, startedAt, runId) => {
+    set((state) => {
+      const nextInfo = {
+        ...state.runningInfo,
+        [platform]: { crawlerType, startedAt, runId },
       }
-    }
+      const nextClearedLogId = { ...state.clearedAfterLogId }
+
+      if (startedAt !== null) {
+        nextClearedLogId[platform] = null
+        saveClearedLogIdToStorage(platform, null)
+      }
+
+      return {
+        runningInfo: nextInfo,
+        clearedAfterLogId: nextClearedLogId,
+      }
+    })
+  },
+
+  setBulkStatus: (platformStates) => {
+    set((state) => {
+      const nextStatuses = { ...state.statuses }
+      const nextRunningInfo = { ...state.runningInfo }
+
+      Object.entries(platformStates).forEach(([platform, data]: [string, any]) => {
+        nextStatuses[platform] = data.status
+        nextRunningInfo[platform] = {
+          crawlerType: data.crawler_type,
+          startedAt: data.started_at,
+          runId: data.run_id,
+        }
+      })
+
+      return {
+        statuses: nextStatuses,
+        runningInfo: nextRunningInfo,
+      }
+    })
   },
 
   addLog: (log) => {
-    const { clearedAfterLogId, logs } = get()
-    // 如果有清除标记，过滤掉 id 小于等于该标记的日志
-    if (clearedAfterLogId !== null && log.id <= clearedAfterLogId) {
+    // Route log to its platform. If platform is not specified in log, fall back to activePlatformTab
+    const platform = log.platform || get().activePlatformTab
+    const currentClearedId = get().clearedAfterLogId[platform]
+    const platformLogs = get().logs[platform] || []
+
+    if (currentClearedId !== null && log.id <= currentClearedId) {
       return
     }
-    // 防止 WebSocket 重连/重复连接导致的重复日志
-    if (logs.length > 0 && logs[logs.length - 1].id === log.id) {
+
+    if (platformLogs.length > 0 && platformLogs[platformLogs.length - 1].id === log.id) {
       return
     }
-    if (logs.some((existing) => existing.id === log.id)) {
+
+    if (platformLogs.some((existing) => existing.id === log.id)) {
       return
     }
+
+    set((state) => {
+      const pLogs = state.logs[platform] || []
+      return {
+        logs: {
+          ...state.logs,
+          [platform]: [...pLogs.slice(-499), log],
+        },
+      }
+    })
+  },
+
+  setLogs: (platform, logs) => {
+    const currentClearedId = get().clearedAfterLogId[platform]
+    const filteredLogs = currentClearedId !== null
+      ? logs.filter((log) => log.id > currentClearedId)
+      : logs
     set((state) => ({
-      logs: [...state.logs.slice(-499), log], // Keep last 500 logs
+      logs: {
+        ...state.logs,
+        [platform]: filteredLogs,
+      },
     }))
   },
 
-  setLogs: (logs) => {
-    const { clearedAfterLogId } = get()
-    // 如果有清除标记，过滤掉 id 小于等于该标记的日志
-    const filteredLogs = clearedAfterLogId !== null
-      ? logs.filter((log) => log.id > clearedAfterLogId)
-      : logs
-    set({ logs: filteredLogs })
+  clearLogs: (platform) => {
+    const platformLogs = get().logs[platform] || []
+    const maxLogId = platformLogs.length > 0 ? Math.max(...platformLogs.map((l) => l.id)) : 0
+    
+    set((state) => ({
+      logs: {
+        ...state.logs,
+        [platform]: [],
+      },
+      clearedAfterLogId: {
+        ...state.clearedAfterLogId,
+        [platform]: maxLogId,
+      },
+    }))
+    
+    saveClearedLogIdToStorage(platform, maxLogId)
   },
 
-  clearLogs: () => {
-    const { logs } = get()
-    // 记录当前最大的 log id，清除后只显示比这个 id 大的日志
-    const maxLogId = logs.length > 0 ? Math.max(...logs.map(l => l.id)) : 0
-    set({ logs: [], clearedAfterLogId: maxLogId })
-    // 持久化到 localStorage
-    saveClearedLogIdToStorage(maxLogId)
-  },
-
-  restoreLogs: () => {
-    // 清除清除标记，这样下次重新加载日志时就会显示所有日志
-    set({ clearedAfterLogId: null })
-    saveClearedLogIdToStorage(null)
-    // 触发日志重新加载（通过刷新页面或重新连接 WebSocket）
+  restoreLogs: (platform) => {
+    set((state) => ({
+      clearedAfterLogId: {
+        ...state.clearedAfterLogId,
+        [platform]: null,
+      },
+    }))
+    saveClearedLogIdToStorage(platform, null)
     window.location.reload()
   },
 
@@ -142,11 +225,29 @@ export const useCrawlerStore = create<CrawlerState>((set, get) => ({
       config: { ...state.config, ...config },
     })),
 
-  reset: () =>
-    set({
-      status: 'idle',
-      platform: null,
-      crawlerType: null,
-      startedAt: null,
-    }),
+  setSelectedPlatforms: (selectedPlatforms) => {
+    set({ selectedPlatforms })
+    if (selectedPlatforms.length > 0 && !selectedPlatforms.includes(get().activePlatformTab)) {
+      set({ activePlatformTab: selectedPlatforms[0] })
+    }
+  },
+
+  setActivePlatformTab: (activePlatformTab) => set({ activePlatformTab }),
+
+  reset: (platform) => {
+    if (platform) {
+      set((state) => ({
+        statuses: { ...state.statuses, [platform]: 'idle' as const },
+        runningInfo: {
+          ...state.runningInfo,
+          [platform]: { crawlerType: null, startedAt: null, runId: null },
+        },
+      }))
+    } else {
+      set({
+        statuses: initialStatuses,
+        runningInfo: initialRunningInfo,
+      })
+    }
+  },
 }))

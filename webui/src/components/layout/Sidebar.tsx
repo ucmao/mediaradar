@@ -8,17 +8,16 @@ import { ThemeToggle } from './ThemeToggle'
 interface SidebarProps {
   activeView: 'crawler' | 'results'
   onViewChange: (view: 'crawler' | 'results') => void
-  onShowDisclaimer?: () => void
 }
 
 export function Sidebar({ activeView, onViewChange }: SidebarProps) {
   const { t } = useTranslation()
-  const status = useCrawlerStore((state) => state.status)
+  const statuses = useCrawlerStore((state) => state.statuses)
 
   // Poll status
   useCrawlerStatus()
 
-  const isRunning = status === 'running'
+  const isRunning = Object.values(statuses).some((s) => s === 'running')
 
   return (
     <header className="h-14 flex-shrink-0 glass-panel border-b border-cyber-border-subtle relative z-10">

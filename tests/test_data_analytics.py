@@ -185,3 +185,24 @@ def test_delete_finished_run_but_not_running_run(tmp_path, monkeypatch):
     assert deleted.status_code == 200
     assert blocked.status_code == 409
     assert {run["run_id"] for run in repository.list_runs()["items"]} == {running_run}
+
+
+def test_delete_all_finished_runs(tmp_path, monkeypatch):
+    import api.routers.data as data_router
+
+    repository = AnalyticsRepository(tmp_path / "analytics.sqlite3")
+    finished_run_1 = repository.create_run({"platform": "xhs", "crawler_type": "search"})
+    repository.finish_run(finished_run_1, "completed", 0, [])
+    finished_run_2 = repository.create_run({"platform": "xhs", "crawler_type": "search"})
+    repository.finish_run(finished_run_2, "completed", 0, [])
+    running_run = repository.create_run({"platform": "dy", "crawler_type": "search"})
+
+    monkeypatch.setattr(data_router, "analytics_repository", repository)
+    client = TestClient(app)
+
+    deleted_all = client.delete("/api/data/analytics/runs/all")
+    assert deleted_all.status_code == 200
+    
+    remaining_runs = repository.list_runs()["items"]
+    assert len(remaining_runs) == 1
+    assert remaining_runs[0]["run_id"] == running_run

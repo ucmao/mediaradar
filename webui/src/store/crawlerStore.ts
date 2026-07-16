@@ -62,7 +62,7 @@ const defaultConfig: CrawlerConfig = {
   specified_ids: '',
   creator_ids: '',
   start_page: 1,
-  enable_comments: true,
+  enable_comments: false,
   enable_sub_comments: false,
   cookies: '',
   headless: false,

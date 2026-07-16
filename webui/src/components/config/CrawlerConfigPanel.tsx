@@ -1,6 +1,14 @@
 import type { ComponentType, ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Database, KeyRound, MessageSquare, ShieldAlert } from 'lucide-react'
+import {
+  Database,
+  KeyRound,
+  Layers3,
+  MessageSquare,
+  Monitor,
+  RefreshCw,
+  ShieldCheck,
+} from 'lucide-react'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
@@ -10,58 +18,63 @@ import { useConfigOptions } from '@/hooks/useCrawler'
 import { ParsedIdList } from './ParsedIdList'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 
-type SectionProps = {
-  title: string
-  description: string
-  icon: ComponentType<{ className?: string }>
-  children: ReactNode
-  className?: string
-  compact?: boolean
-}
-
-function Section({ title, description, icon: Icon, children, className = '', compact = false }: SectionProps) {
-  return (
-    <section className={`rounded-xl glass-panel float-panel overflow-hidden border border-cyber-border-subtle/50 bg-cyber-bg-panel/20 ${className}`}>
-      <header className={`${compact ? 'px-3 py-2 gap-2' : 'px-4 py-3 gap-3'} border-b border-cyber-border-subtle/40 flex items-center bg-cyber-bg-tertiary/20`}>
-        <div className={`${compact ? 'h-7 w-7' : 'h-8 w-8'} rounded-md bg-cyber-bg-tertiary/50 border border-cyber-border-subtle/60 flex items-center justify-center flex-shrink-0`}>
-          <Icon className="h-4 w-4 text-cyber-neon-cyan" />
-        </div>
-        <div className="min-w-0">
-          <div className="text-xs font-mono font-semibold text-cyber-text-primary tracking-wide">
-            {title}
-          </div>
-          <div className="text-[10px] text-cyber-text-muted leading-snug truncate">
-            {description}
-          </div>
-        </div>
-      </header>
-      <div className={compact ? 'p-3 space-y-3' : 'p-4 space-y-4'}>
-        {children}
-      </div>
-    </section>
-  )
-}
-
 type FieldProps = {
   label: string
   hint?: string
   children: ReactNode
+  className?: string
 }
 
-function Field({ label, hint, children }: FieldProps) {
+function Field({ label, hint, children, className = '' }: FieldProps) {
   return (
-    <div className="space-y-1.5">
-      <div className="space-y-0.5">
-        <Label className="text-xs text-cyber-text-secondary font-mono">
+    <div className={`space-y-1.5 ${className}`}>
+      <div className="min-h-8">
+        <Label className="text-[11px] text-cyber-text-secondary font-mono uppercase tracking-wide">
           {label}
         </Label>
-        {hint ? (
-          <p className="text-[9px] text-cyber-text-muted leading-snug">
-            {hint}
-          </p>
-        ) : null}
+        {hint ? <p className="text-[9px] text-cyber-text-muted leading-snug">{hint}</p> : null}
       </div>
       {children}
+    </div>
+  )
+}
+
+type ToggleCardProps = {
+  title: string
+  description: string
+  icon: ComponentType<{ className?: string }>
+  checked: boolean
+  disabled: boolean
+  onCheckedChange: (checked: boolean) => void
+}
+
+function ToggleCard({
+  title,
+  description,
+  icon: Icon,
+  checked,
+  disabled,
+  onCheckedChange,
+}: ToggleCardProps) {
+  return (
+    <div
+      className={`flex min-h-[74px] items-start gap-3 rounded-lg border p-3 transition-colors ${
+        checked
+          ? 'border-cyber-neon-cyan/45 bg-cyber-neon-cyan/5'
+          : 'border-cyber-border-subtle/60 bg-cyber-bg-tertiary/10'
+      } ${disabled ? 'opacity-45' : 'hover:border-cyber-border-default'}`}
+    >
+      <Checkbox
+        checked={checked}
+        onCheckedChange={(value) => onCheckedChange(value === true)}
+        disabled={disabled}
+        className="mt-0.5"
+      />
+      <Icon className={`mt-0.5 h-4 w-4 flex-shrink-0 ${checked ? 'text-cyber-neon-cyan' : 'text-cyber-text-muted'}`} />
+      <div className="min-w-0">
+        <p className="text-xs font-mono font-medium text-cyber-text-primary">{title}</p>
+        <p className="mt-1 text-[9px] leading-snug text-cyber-text-muted">{description}</p>
+      </div>
     </div>
   )
 }
@@ -71,230 +84,202 @@ export function CrawlerConfigPanel() {
   const config = useCrawlerStore((state) => state.config)
   const updateConfig = useCrawlerStore((state) => state.updateConfig)
   const statuses = useCrawlerStore((state) => state.statuses)
+  const selectedPlatforms = useCrawlerStore((state) => state.selectedPlatforms)
   const activePlatformTab = useCrawlerStore((state) => state.activePlatformTab)
-
   const { data: options } = useConfigOptions()
 
-  const isDisabled = Object.values(statuses).some((s) => s === 'running' || s === 'stopping')
+  const isDisabled = Object.values(statuses).some((status) => status === 'running' || status === 'stopping')
+  const idParserPlatform = selectedPlatforms[0] || activePlatformTab
 
   return (
-    <div className="h-full min-h-0 flex flex-col gap-3 overflow-hidden pr-1">
-      {/* Advanced Parameters Label */}
-      <div className="flex-shrink-0 flex items-center gap-2 px-1 text-cyber-text-secondary font-mono text-xs uppercase tracking-wider">
-        <ShieldAlert className="w-4 h-4 text-cyber-neon-purple animate-pulse" />
-        Advanced Config ({activePlatformTab.toUpperCase()})
-      </div>
+    <section className="relative flex-shrink-0 overflow-hidden rounded-xl border border-cyber-border-subtle bg-cyber-bg-panel/35 p-4 glass-panel float-panel">
+      <div className="absolute inset-y-0 left-0 w-[2px] bg-gradient-to-b from-cyber-neon-purple via-cyber-neon-cyan to-transparent" />
 
-      <Tabs defaultValue="execution" className="flex-1 flex flex-col min-h-0">
-        <TabsList className="grid grid-cols-3 mb-2 flex-shrink-0 h-9 p-0.5 bg-cyber-bg-tertiary/60 border-cyber-border-subtle/50">
-          <TabsTrigger value="execution" className="text-xs py-1">运行设置</TabsTrigger>
-          <TabsTrigger value="auth" className="text-xs py-1">登录配置</TabsTrigger>
-          <TabsTrigger value="extraction" className="text-xs py-1">提取参数</TabsTrigger>
-        </TabsList>
-
-        <div className="flex-1 min-h-0 overflow-y-auto space-y-4">
-          <TabsContent value="execution" className="mt-0 focus-visible:ring-0 focus-visible:ring-offset-0">
-            {/* Target & Mode Section */}
-            <Section
-              title="Execution Settings"
-              description="Configure crawling parameters and source parameters"
-              icon={Database}
-            >
-              <div className="grid grid-cols-2 gap-3">
-                <Field label={t('field.crawlType')}>
-                  <Select
-                    value={config.crawler_type}
-                    onValueChange={(value) => updateConfig({ crawler_type: value })}
-                    disabled={isDisabled}
-                  >
-                    <SelectTrigger className="h-9 text-xs font-mono">
-                      <SelectValue placeholder={t('field.crawlTypePlaceholder')} />
-                    </SelectTrigger>
-                    <SelectContent className="font-mono text-xs">
-                      {options?.crawler_types.map((type) => (
-                        <SelectItem key={type.value} value={type.value}>
-                          {type.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-
-                <Field label={t('field.startPage')}>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={config.start_page}
-                    onChange={(e) => updateConfig({ start_page: parseInt(e.target.value) || 1 })}
-                    disabled={isDisabled}
-                    className="h-9 text-xs font-mono"
-                  />
-                </Field>
+      <Tabs defaultValue="execution" className="space-y-3">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-cyber-neon-purple/30 bg-cyber-neon-purple/10">
+              <ShieldCheck className="h-4 w-4 text-cyber-neon-purple" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-xs font-mono font-semibold uppercase tracking-[0.16em] text-cyber-text-primary">
+                  统一采集参数
+                </h2>
+                <span className="rounded-full border border-cyber-neon-cyan/25 bg-cyber-neon-cyan/5 px-2 py-0.5 text-[9px] font-mono text-cyber-neon-cyan">
+                  应用于 {selectedPlatforms.length} 个已选平台
+                </span>
               </div>
+              <p className="mt-1 text-[10px] text-cyber-text-muted">
+                爬取模式、页码、登录和提取策略会一致应用到所有目标平台
+              </p>
+            </div>
+          </div>
 
-              {/* Conditionally display specified inputs based on crawler type */}
-              {config.crawler_type === 'detail' && (
-                <Field label={t('field.specifiedIds')} hint={t('field.specifiedIdsHint')}>
-                  <textarea
-                    value={config.specified_ids}
-                    onChange={(e) => updateConfig({ specified_ids: e.target.value })}
-                    disabled={isDisabled}
-                    placeholder={t(`field.specifiedIdsPlaceholder.${activePlatformTab}`, t('field.specifiedIdsPlaceholder.default'))}
-                    className="min-h-[100px] w-full rounded-md border border-cyber-border-default bg-cyber-bg-tertiary/20 px-3 py-2 text-xs font-mono text-cyber-text-primary placeholder:text-cyber-text-muted focus-visible:outline-none focus-visible:border-cyber-neon-cyan/50 focus-visible:shadow-cyber-soft disabled:cursor-not-allowed disabled:opacity-50 transition-all resize-none"
-                  />
-                  <ParsedIdList
-                    value={config.specified_ids}
-                    platform={activePlatformTab}
-                    type="detail"
-                    disabled={isDisabled}
-                  />
-                  {activePlatformTab === 'xhs' && (
-                    <div className="mt-2 rounded-lg border border-cyber-neon-orange/30 bg-cyber-neon-orange/5 p-2 text-[10px] leading-snug text-cyber-neon-orange font-mono">
-                      {t('warning.xhsToken')}
-                    </div>
-                  )}
-                </Field>
-              )}
-
-              {config.crawler_type === 'creator' && (
-                <Field label={t('field.creatorIds')} hint={t('field.creatorIdsHint')}>
-                  <textarea
-                    value={config.creator_ids}
-                    onChange={(e) => updateConfig({ creator_ids: e.target.value })}
-                    disabled={isDisabled}
-                    placeholder={t(`field.creatorIdsPlaceholder.${activePlatformTab}`, t('field.creatorIdsPlaceholder.default'))}
-                    className="min-h-[100px] w-full rounded-md border border-cyber-border-default bg-cyber-bg-tertiary/20 px-3 py-2 text-xs font-mono text-cyber-text-primary placeholder:text-cyber-text-muted focus-visible:outline-none focus-visible:border-cyber-neon-cyan/50 focus-visible:shadow-cyber-soft disabled:cursor-not-allowed disabled:opacity-50 transition-all resize-none"
-                  />
-                  <ParsedIdList
-                    value={config.creator_ids}
-                    platform={activePlatformTab}
-                    type="creator"
-                    disabled={isDisabled}
-                  />
-                  {activePlatformTab === 'xhs' && (
-                    <div className="mt-2 rounded-lg border border-cyber-neon-orange/30 bg-cyber-neon-orange/5 p-2 text-[10px] leading-snug text-cyber-neon-orange font-mono">
-                      {t('warning.xhsToken')}
-                    </div>
-                  )}
-                </Field>
-              )}
-            </Section>
-          </TabsContent>
-
-          <TabsContent value="auth" className="mt-0 focus-visible:ring-0 focus-visible:ring-offset-0">
-            {/* Authentication Section */}
-            <Section
-              title={t('section.authMatrix.title')}
-              description={t('section.authMatrix.description')}
-              icon={KeyRound}
-              compact
-            >
-              <Field label={t('field.loginMethod')}>
-                <Select
-                  value={config.login_type}
-                  onValueChange={(value) => updateConfig({ login_type: value })}
-                  disabled={isDisabled}
-                >
-                  <SelectTrigger className="h-9 text-xs font-mono">
-                    <SelectValue placeholder={t('field.loginMethodPlaceholder')} />
-                  </SelectTrigger>
-                  <SelectContent className="font-mono text-xs">
-                    {options?.login_types.map((type) => (
-                      <SelectItem key={type.value} value={type.value}>
-                        {type.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              {config.login_type === 'cookie' ? (
-                <Field label={t('field.cookies')} hint={t('field.cookiesHint')}>
-                  <textarea
-                    value={config.cookies}
-                    onChange={(e) => updateConfig({ cookies: e.target.value })}
-                    disabled={isDisabled}
-                    placeholder={t('field.cookiesPlaceholder')}
-                    className="min-h-[100px] w-full rounded-md border border-cyber-border-default bg-cyber-bg-tertiary/20 px-3 py-2 text-xs font-mono text-cyber-text-primary placeholder:text-cyber-text-muted focus-visible:outline-none focus-visible:border-cyber-neon-cyan/50 focus-visible:shadow-cyber-soft disabled:cursor-not-allowed disabled:opacity-50 transition-all resize-none"
-                  />
-                </Field>
-              ) : null}
-
-              {config.login_type === 'cookie' && (activePlatformTab === 'xhs' || activePlatformTab === 'dy') ? (
-                <div className="rounded-lg border border-cyber-neon-orange/30 bg-cyber-neon-orange/5 p-3 text-[11px] leading-snug text-cyber-neon-orange font-mono">
-                  {t('warning.cookieSlider')}
-                </div>
-              ) : null}
-            </Section>
-          </TabsContent>
-
-          <TabsContent value="extraction" className="mt-0 focus-visible:ring-0 focus-visible:ring-offset-0">
-            {/* Comment Collection & Headless Settings */}
-            <Section
-              title="Extraction Parameters"
-              description="Choose output metrics and browser display options"
-              icon={Database}
-            >
-              <div className="space-y-2">
-                <div className="flex items-center gap-3 rounded-lg border border-cyber-border-subtle bg-cyber-bg-tertiary/10 p-2.5 hover:border-cyber-border-default transition-colors">
-                  <Checkbox
-                    checked={config.enable_comments}
-                    onCheckedChange={(checked) => {
-                      const isChecked = checked === true
-                      updateConfig({
-                        enable_comments: isChecked,
-                        enable_sub_comments: isChecked ? config.enable_sub_comments : false,
-                      })
-                    }}
-                    disabled={isDisabled}
-                  />
-                  <div className="flex items-center gap-2">
-                    <MessageSquare className="h-3.5 w-3.5 text-cyber-text-secondary" />
-                    <p className="text-xs font-mono text-cyber-text-primary">{t('field.commentExtraction')}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 rounded-lg border border-cyber-border-subtle bg-cyber-bg-tertiary/10 p-2.5 hover:border-cyber-border-default transition-colors">
-                  <Checkbox
-                    checked={config.enable_sub_comments}
-                    onCheckedChange={(checked) => updateConfig({ enable_sub_comments: checked === true })}
-                    disabled={isDisabled || !config.enable_comments}
-                  />
-                  <p className="text-xs font-mono text-cyber-text-primary">{t('field.subComments')}</p>
-                </div>
-
-                <div className="flex items-center gap-3 rounded-lg border border-cyber-border-subtle bg-cyber-bg-tertiary/10 p-2.5 hover:border-cyber-border-default transition-colors">
-                  <Checkbox
-                    checked={config.headless}
-                    onCheckedChange={(checked) => updateConfig({ headless: checked === true })}
-                    disabled={isDisabled}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-mono text-cyber-text-primary">{t('field.headlessMode')}</p>
-                    <p className="text-[10px] text-cyber-text-muted leading-snug">
-                      {t('field.headlessModeHint')}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 rounded-lg border border-cyber-border-subtle bg-cyber-bg-tertiary/10 p-2.5 hover:border-cyber-border-default transition-colors">
-                  <Checkbox
-                    checked={config.loop_execution}
-                    onCheckedChange={(checked) => updateConfig({ loop_execution: checked === true })}
-                    disabled={isDisabled}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-mono text-cyber-text-primary">Continuous Loop Mode (循环执行)</p>
-                    <p className="text-[10px] text-cyber-text-muted leading-snug">
-                      Automatically restart execution after a cycle ends to monitor targets continuously.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </Section>
-          </TabsContent>
+          <TabsList className="grid h-9 w-full grid-cols-3 bg-cyber-bg-tertiary/60 p-0.5 lg:w-[420px]">
+            <TabsTrigger value="execution" className="text-[11px]">运行设置</TabsTrigger>
+            <TabsTrigger value="auth" className="text-[11px]">登录配置</TabsTrigger>
+            <TabsTrigger value="extraction" className="text-[11px]">提取参数</TabsTrigger>
+          </TabsList>
         </div>
+
+        <TabsContent value="execution" className="mt-0 focus-visible:ring-0 focus-visible:ring-offset-0">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <Field label={t('field.crawlType')} hint="统一决定所有平台的目标类型">
+              <Select
+                value={config.crawler_type}
+                onValueChange={(value) => updateConfig({ crawler_type: value })}
+                disabled={isDisabled}
+              >
+                <SelectTrigger className="h-9 text-xs font-mono">
+                  <SelectValue placeholder={t('field.crawlTypePlaceholder')} />
+                </SelectTrigger>
+                <SelectContent className="font-mono text-xs">
+                  {options?.crawler_types.map((type) => (
+                    <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+
+            <Field label={t('field.startPage')} hint="所有平台从相同页码开始">
+              <Input
+                type="number"
+                min={1}
+                value={config.start_page}
+                onChange={(event) => updateConfig({ start_page: parseInt(event.target.value) || 1 })}
+                disabled={isDisabled}
+                className="h-9 text-xs font-mono"
+              />
+            </Field>
+
+            <div className="hidden items-center gap-3 rounded-lg border border-dashed border-cyber-border-subtle/50 bg-cyber-bg-tertiary/5 px-4 xl:col-span-2 xl:flex">
+              <Layers3 className="h-5 w-5 text-cyber-neon-cyan/70" />
+              <div>
+                <p className="text-[10px] font-mono text-cyber-text-secondary">一致性任务</p>
+                <p className="text-[9px] text-cyber-text-muted">每个平台独立运行，共享本组参数与关键词</p>
+              </div>
+            </div>
+
+            {config.crawler_type === 'detail' && (
+              <Field
+                label={t('field.specifiedIds')}
+                hint="该列表会发送给所有已选平台，请确保 ID 格式均有效"
+                className="md:col-span-2 xl:col-span-4"
+              >
+                <textarea
+                  value={config.specified_ids}
+                  onChange={(event) => updateConfig({ specified_ids: event.target.value })}
+                  disabled={isDisabled}
+                  placeholder={t('field.specifiedIdsPlaceholder.default')}
+                  className="min-h-[72px] w-full resize-none rounded-md border border-cyber-border-default bg-cyber-bg-tertiary/20 px-3 py-2 text-xs font-mono text-cyber-text-primary placeholder:text-cyber-text-muted focus-visible:border-cyber-neon-cyan/50 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                />
+                <ParsedIdList value={config.specified_ids} platform={idParserPlatform} type="detail" disabled={isDisabled} />
+                {selectedPlatforms.includes('xhs') && (
+                  <div className="rounded-lg border border-cyber-neon-orange/30 bg-cyber-neon-orange/5 p-2 text-[10px] font-mono text-cyber-neon-orange">
+                    {t('warning.xhsToken')}
+                  </div>
+                )}
+              </Field>
+            )}
+
+            {config.crawler_type === 'creator' && (
+              <Field
+                label={t('field.creatorIds')}
+                hint="该列表会发送给所有已选平台，请确保创作者 ID 格式均有效"
+                className="md:col-span-2 xl:col-span-4"
+              >
+                <textarea
+                  value={config.creator_ids}
+                  onChange={(event) => updateConfig({ creator_ids: event.target.value })}
+                  disabled={isDisabled}
+                  placeholder={t('field.creatorIdsPlaceholder.default')}
+                  className="min-h-[72px] w-full resize-none rounded-md border border-cyber-border-default bg-cyber-bg-tertiary/20 px-3 py-2 text-xs font-mono text-cyber-text-primary placeholder:text-cyber-text-muted focus-visible:border-cyber-neon-cyan/50 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                />
+                <ParsedIdList value={config.creator_ids} platform={idParserPlatform} type="creator" disabled={isDisabled} />
+              </Field>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="auth" className="mt-0 focus-visible:ring-0 focus-visible:ring-offset-0">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-[280px_minmax(0,1fr)]">
+            <Field label={t('field.loginMethod')} hint="所有平台使用相同登录策略">
+              <Select
+                value={config.login_type}
+                onValueChange={(value) => updateConfig({ login_type: value })}
+                disabled={isDisabled}
+              >
+                <SelectTrigger className="h-9 text-xs font-mono">
+                  <SelectValue placeholder={t('field.loginMethodPlaceholder')} />
+                </SelectTrigger>
+                <SelectContent className="font-mono text-xs">
+                  {options?.login_types.map((type) => (
+                    <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+
+            {config.login_type === 'cookie' ? (
+              <Field label={t('field.cookies')} hint="Cookie 会作为统一模板传给各平台任务；多平台 Cookie 不一致时请分别运行">
+                <textarea
+                  value={config.cookies}
+                  onChange={(event) => updateConfig({ cookies: event.target.value })}
+                  disabled={isDisabled}
+                  placeholder={t('field.cookiesPlaceholder')}
+                  className="min-h-[58px] w-full resize-none rounded-md border border-cyber-border-default bg-cyber-bg-tertiary/20 px-3 py-2 text-xs font-mono text-cyber-text-primary placeholder:text-cyber-text-muted focus-visible:border-cyber-neon-cyan/50 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                />
+              </Field>
+            ) : (
+              <div className="flex min-h-[72px] items-center gap-3 rounded-lg border border-dashed border-cyber-border-subtle/50 bg-cyber-bg-tertiary/5 px-4">
+                <KeyRound className="h-5 w-5 text-cyber-neon-cyan/70" />
+                <p className="text-[10px] text-cyber-text-muted">启动后，各平台会独立完成二维码登录或复用已保存的登录状态。</p>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="extraction" className="mt-0 focus-visible:ring-0 focus-visible:ring-offset-0">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <ToggleCard
+              title={t('field.commentExtraction')}
+              description="默认关闭；开启后抓取一级评论"
+              icon={MessageSquare}
+              checked={config.enable_comments}
+              disabled={isDisabled}
+              onCheckedChange={(checked) => updateConfig({
+                enable_comments: checked,
+                enable_sub_comments: checked ? config.enable_sub_comments : false,
+              })}
+            />
+            <ToggleCard
+              title={t('field.subComments')}
+              description="仅在评论抓取开启时可用"
+              icon={Database}
+              checked={config.enable_sub_comments}
+              disabled={isDisabled || !config.enable_comments}
+              onCheckedChange={(checked) => updateConfig({ enable_sub_comments: checked })}
+            />
+            <ToggleCard
+              title={t('field.headlessMode')}
+              description={t('field.headlessModeHint')}
+              icon={Monitor}
+              checked={config.headless}
+              disabled={isDisabled}
+              onCheckedChange={(checked) => updateConfig({ headless: checked })}
+            />
+            <ToggleCard
+              title="循环执行"
+              description="一轮结束后自动等待并重新执行"
+              icon={RefreshCw}
+              checked={config.loop_execution}
+              disabled={isDisabled}
+              onCheckedChange={(checked) => updateConfig({ loop_execution: checked })}
+            />
+          </div>
+        </TabsContent>
       </Tabs>
-    </div>
+    </section>
   )
 }

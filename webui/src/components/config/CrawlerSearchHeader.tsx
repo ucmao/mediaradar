@@ -125,11 +125,11 @@ export function CrawlerSearchHeader() {
   }
 
   return (
-    <div className="w-full rounded-xl glass-panel p-6 space-y-5 float-panel border border-cyber-border-subtle bg-cyber-bg-panel/40 relative overflow-hidden">
+    <div className="w-full rounded-xl glass-panel p-4 space-y-4 float-panel border border-cyber-border-subtle bg-cyber-bg-panel/40 relative overflow-hidden">
       {/* Background cyber accent line */}
       <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-cyber-neon-cyan via-cyber-neon-purple to-cyber-neon-pink shadow-[0_0_8px_rgba(0,255,255,0.5)]" />
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-5 items-end">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-4 items-end">
         {/* Keyword Search Input Bar */}
         <div className="space-y-2">
           <label className="text-xs text-cyber-text-secondary font-mono tracking-wider flex items-center gap-1.5 uppercase">
@@ -145,12 +145,12 @@ export function CrawlerSearchHeader() {
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Type keyword and press Enter or comma..."
-                className="pl-12 pr-4 h-14 text-sm font-mono bg-cyber-bg-tertiary/20 border-cyber-border-default/60 focus:border-cyber-neon-cyan focus:ring-1 focus:ring-cyber-neon-cyan shadow-inner rounded-xl transition-all"
+                className="pl-12 pr-4 h-12 text-sm font-mono bg-cyber-bg-tertiary/20 border-cyber-border-default/60 focus:border-cyber-neon-cyan focus:ring-1 focus:ring-cyber-neon-cyan shadow-inner rounded-xl transition-all"
               />
             </div>
           ) : (
-            <div className="h-14 flex items-center px-4 rounded-xl border border-dashed border-cyber-border-default/60 bg-cyber-bg-tertiary/10 text-xs font-mono text-cyber-text-muted">
-              Crawl Mode is set to "{config.crawler_type === 'detail' ? 'Specified ID Details' : 'Creator Homepage'}". Use Advanced Config Panel to supply target IDs.
+            <div className="h-12 flex items-center px-4 rounded-xl border border-dashed border-cyber-border-default/60 bg-cyber-bg-tertiary/10 text-xs font-mono text-cyber-text-muted">
+              当前模式：{config.crawler_type === 'detail' ? '指定内容详情' : '创作者主页'}。请在下方统一采集参数中填写目标 ID。
             </div>
           )}
 
@@ -182,7 +182,7 @@ export function CrawlerSearchHeader() {
             <Button
               onClick={handleStopAll}
               disabled={isAnyStopping}
-              className="h-14 px-8 bg-cyber-neon-pink text-white font-mono font-bold text-sm tracking-widest rounded-xl hover:bg-cyber-neon-pink/90 hover:shadow-glow-pink-sm transition-all flex items-center gap-2"
+              className="h-12 px-8 bg-cyber-neon-pink text-white font-mono font-bold text-sm tracking-widest rounded-xl hover:bg-cyber-neon-pink/90 hover:shadow-glow-pink-sm transition-all flex items-center gap-2"
             >
               <Square className="w-4 h-4 fill-white" />
               {isAnyStopping ? 'STOPPING...' : 'TERMINATE SCAN'}
@@ -191,7 +191,7 @@ export function CrawlerSearchHeader() {
             <Button
               onClick={handleStartAll}
               disabled={selectedPlatforms.length === 0}
-              className="h-14 px-8 bg-cyber-neon-cyan text-cyber-bg-primary font-mono font-bold text-sm tracking-widest rounded-xl hover:bg-cyber-neon-cyan/90 hover:shadow-glow-cyan-sm transition-all flex items-center gap-2"
+              className="h-12 px-8 bg-cyber-neon-cyan text-cyber-bg-primary font-mono font-bold text-sm tracking-widest rounded-xl hover:bg-cyber-neon-cyan/90 hover:shadow-glow-cyan-sm transition-all flex items-center gap-2"
             >
               <Play className="w-4 h-4 fill-cyber-bg-primary" />
               INITIATE SCAN
@@ -216,7 +216,7 @@ export function CrawlerSearchHeader() {
                 key={platform.value}
                 type="button"
                 onClick={() => handlePlatformToggle(platform.value)}
-                className={`relative flex flex-col items-center justify-center p-3.5 rounded-xl border text-center transition-all duration-300 font-mono select-none ${
+                className={`relative flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all duration-300 font-mono select-none ${
                   isSelected
                     ? 'bg-cyber-neon-cyan/5 border-cyber-neon-cyan/60 text-cyber-text-primary shadow-glow-cyan-xs'
                     : 'bg-cyber-bg-tertiary/10 border-cyber-border-subtle/50 text-cyber-text-muted hover:border-cyber-border-default/80 hover:text-cyber-text-secondary'
@@ -234,7 +234,7 @@ export function CrawlerSearchHeader() {
                   <span className="absolute top-1.5 left-1.5 w-2.5 h-2.5 bg-cyber-neon-green rounded-full shadow-glow-green-sm animate-pulse-fast" />
                 )}
 
-                <IconComponent className={`w-6 h-6 mb-2 transition-transform duration-300 ${isSelected ? 'text-cyber-neon-cyan scale-110' : 'text-cyber-text-muted'}`} />
+                <IconComponent className={`w-5 h-5 mb-1.5 transition-transform duration-300 ${isSelected ? 'text-cyber-neon-cyan scale-110' : 'text-cyber-text-muted'}`} />
                 <span className="text-xs font-semibold">{platform.label}</span>
                 
                 {/* Micro-status label */}

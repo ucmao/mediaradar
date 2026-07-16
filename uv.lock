@@ -911,7 +911,7 @@ wheels = [
 ]
 
 [[package]]
-name = "mediacrawler"
+name = "mediaradar"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [

@@ -11,9 +11,9 @@ const fetchAds = async () => {
   return [
     {
       id: 1,
-      imageUrl: 'https://github.com/NanmiCoder/MediaCrawler/raw/main/docs/static/images/MediaCrawlerPro.jpg',
-      landingUrl: 'https://github.com/MediaCrawlerPro',
-      text: '👏欢迎大家来订阅MediaCrawlerPro源代码'
+      imageUrl: 'https://github.com/NanmiCoder/MediaRadar/raw/main/docs/static/images/MediaRadarPro.jpg',
+      landingUrl: 'https://github.com/MediaRadarPro',
+      text: '👏欢迎大家来订阅MediaRadarPro源代码'
     }
   ]
 }

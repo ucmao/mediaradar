@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2025 relakkes@gmail.com
 #
-# This file is part of MediaCrawler project.
-# Repository: https://github.com/NanmiCoder/MediaCrawler/blob/main/cmd_arg/arg.py
+# This file is part of MediaRadar project.
+# Repository: https://github.com/NanmiCoder/MediaRadar/blob/main/cmd_arg/arg.py
 # GitHub: https://github.com/NanmiCoder
 # Licensed under NON-COMMERCIAL LEARNING LICENSE 1.1
 #
@@ -333,7 +333,7 @@ async def parse_cmd(argv: Optional[Sequence[str]] = None):
             ),
         ] = config.STATIC_PROXY_URL,
     ) -> SimpleNamespace:
-        """MediaCrawler 命令行入口"""
+        """MediaRadar 命令行入口"""
 
         enable_comment = _to_bool(get_comment)
         enable_sub_comment = _to_bool(get_sub_comment)

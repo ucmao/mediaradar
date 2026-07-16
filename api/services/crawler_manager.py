@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2025 relakkes@gmail.com
 #
-# This file is part of MediaCrawler project.
-# Repository: https://github.com/NanmiCoder/MediaCrawler/blob/main/api/services/crawler_manager.py
+# This file is part of MediaRadar project.
+# Repository: https://github.com/NanmiCoder/MediaRadar/blob/main/api/services/crawler_manager.py
 # GitHub: https://github.com/NanmiCoder
 # Licensed under NON-COMMERCIAL LEARNING LICENSE 1.1
 #
@@ -142,7 +142,7 @@ class CrawlerManager:
                     env={
                         **os.environ,
                         "PYTHONUNBUFFERED": "1",
-                        "MEDIACRAWLER_RUN_ID": run_id,
+                        "MEDIARADAR_RUN_ID": run_id,
                     }
                 )
 

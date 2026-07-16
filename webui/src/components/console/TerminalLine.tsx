@@ -41,11 +41,11 @@ const levelIcons: Record<string, string> = {
   debug: 'DBG',
 }
 
-const mediaCrawlerLogPrefix = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\s+MediaCrawler\s+(?:DEBUG|INFO|WARNING|ERROR|CRITICAL)\s+/
+const mediaRadarLogPrefix = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\s+MediaRadar\s+(?:DEBUG|INFO|WARNING|ERROR|CRITICAL)\s+/
 
 export function TerminalLine({ log }: TerminalLineProps) {
   const config = levelConfig[log.level] || levelConfig.info
-  const message = log.message.replace(mediaCrawlerLogPrefix, '')
+  const message = log.message.replace(mediaRadarLogPrefix, '')
 
   return (
     <div className="flex gap-2 text-xs leading-relaxed font-mono group hover:bg-[#21262d]/50 px-1 -mx-1 rounded transition-colors">

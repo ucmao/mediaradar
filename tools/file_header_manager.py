@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2025 relakkes@gmail.com
 #
-# This file is part of MediaCrawler project.
-# Repository: https://github.com/NanmiCoder/MediaCrawler/blob/main/tools/file_header_manager.py
+# This file is part of MediaRadar project.
+# Repository: https://github.com/NanmiCoder/MediaRadar/blob/main/tools/file_header_manager.py
 # GitHub: https://github.com/NanmiCoder
 # Licensed under NON-COMMERCIAL LEARNING LICENSE 1.1
 #
@@ -32,7 +32,7 @@ import sys
 from typing import List, Tuple
 
 # Project configuration
-REPO_URL = "https://github.com/NanmiCoder/MediaCrawler"
+REPO_URL = "https://github.com/NanmiCoder/MediaRadar"
 GITHUB_PROFILE = "https://github.com/NanmiCoder"
 EMAIL = "relakkes@gmail.com"
 COPYRIGHT_YEAR = "2025"
@@ -78,7 +78,7 @@ def generate_copyright_header(relative_path: str) -> str:
 
     header = f"""# Copyright (c) {COPYRIGHT_YEAR} {EMAIL}
 #
-# This file is part of MediaCrawler project.
+# This file is part of MediaRadar project.
 # Repository: {file_url}
 # GitHub: {GITHUB_PROFILE}
 # Licensed under {LICENSE_TYPE}
@@ -98,7 +98,7 @@ def has_copyright_header(content: str) -> bool:
         True if already contains copyright declaration
     """
     # Check if contains Copyright keyword
-    return "Copyright (c)" in content and "MediaCrawler project" in content
+    return "Copyright (c)" in content and "MediaRadar project" in content
 
 
 def has_disclaimer(content: str) -> bool:

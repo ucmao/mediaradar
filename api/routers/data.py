@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2025 relakkes@gmail.com
 #
-# This file is part of MediaCrawler project.
-# Repository: https://github.com/NanmiCoder/MediaCrawler/blob/main/api/routers/data.py
+# This file is part of MediaRadar project.
+# Repository: https://github.com/NanmiCoder/MediaRadar/blob/main/api/routers/data.py
 # GitHub: https://github.com/NanmiCoder
 # Licensed under NON-COMMERCIAL LEARNING LICENSE 1.1
 #
@@ -140,7 +140,7 @@ async def export_analytics_contents(
         payload = analytics_repository.export_csv(run_id, platform, keyword, query, sort_by)
     except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
-    filename = quote(f"MediaCrawler结果_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
+    filename = quote(f"MediaRadar结果_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
     return StreamingResponse(
         BytesIO(payload),
         media_type="text/csv; charset=utf-8",

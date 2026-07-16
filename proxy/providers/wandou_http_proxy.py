@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2025 relakkes@gmail.com
 #
-# This file is part of MediaCrawler project.
-# Repository: https://github.com/NanmiCoder/MediaCrawler/blob/main/proxy/providers/wandou_http_proxy.py
+# This file is part of MediaRadar project.
+# Repository: https://github.com/NanmiCoder/MediaRadar/blob/main/proxy/providers/wandou_http_proxy.py
 # GitHub: https://github.com/NanmiCoder
 # Licensed under NON-COMMERCIAL LEARNING LICENSE 1.1
 #
@@ -72,7 +72,7 @@ class WanDouHttpProxy(ProxyProvider):
             response = await client.get(
                 url,
                 headers={
-                    "User-Agent": "MediaCrawler https://github.com/NanmiCoder/MediaCrawler",
+                    "User-Agent": "MediaRadar https://github.com/NanmiCoder/MediaRadar",
                 },
             )
             res_dict: Dict = response.json()

@@ -3,10 +3,10 @@ import {withMermaid} from 'vitepress-plugin-mermaid'
 
 // https://vitepress.dev/reference/site-config
 export default withMermaid(defineConfig({
-    title: "MediaCrawler自媒体爬虫",
+    title: "MediaRadar自媒体爬虫",
     description: "小红书爬虫，抖音爬虫， 快手爬虫， B站爬虫， 微博爬虫，百度贴吧爬虫，知乎爬虫...。  ",
     lastUpdated: true,
-    base: '/MediaCrawler/',
+    base: '/MediaRadar/',
     head: [
         [
             'script',
@@ -23,7 +23,7 @@ export default withMermaid(defineConfig({
     ],
     themeConfig: {
         editLink: {
-            pattern: 'https://github.com/NanmiCoder/MediaCrawler/tree/main/docs/:path'
+            pattern: 'https://github.com/NanmiCoder/MediaRadar/tree/main/docs/:path'
         },
         search: {
             provider: 'local'
@@ -41,7 +41,7 @@ export default withMermaid(defineConfig({
                 link: '/作者介绍',
             },
             {
-                text: 'MediaCrawler使用文档',
+                text: 'MediaRadar使用文档',
                 items: [
                     {text: '基本使用', link: '/'},
                     {text: '项目架构文档', link: '/项目架构文档'},
@@ -56,15 +56,15 @@ export default withMermaid(defineConfig({
                 text: '知识付费',
                 items: [
                     {text: '知识付费介绍', link: '/知识付费介绍'},
-                    {text: 'MediaCrawlerPro订阅', link: '/mediacrawlerpro订阅'},
+                    {text: 'MediaRadarPro订阅', link: '/mediaradarpro订阅'},
                     {
-                        text: 'MediaCrawler源码剖析课',
+                        text: 'MediaRadar源码剖析课',
                         link: 'https://relakkes.feishu.cn/wiki/JUgBwdhIeiSbAwkFCLkciHdAnhh'
                     },
                 ]
             },
             {
-                text: 'MediaCrawler项目交流群',
+                text: 'MediaRadar项目交流群',
                 link: '/微信交流群',
             },
             {
@@ -74,7 +74,7 @@ export default withMermaid(defineConfig({
                 ]
             },
             {
-                text: 'MediaCrawler捐赠名单',
+                text: 'MediaRadar捐赠名单',
                 items: [
                     {text: "捐赠名单", link: '/捐赠名单'}
                 ]
@@ -83,7 +83,7 @@ export default withMermaid(defineConfig({
         ],
 
         socialLinks: [
-            {icon: 'github', link: 'https://github.com/NanmiCoder/MediaCrawler'}
+            {icon: 'github', link: 'https://github.com/NanmiCoder/MediaRadar'}
         ]
     }
 }))

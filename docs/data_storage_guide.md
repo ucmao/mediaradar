@@ -1,9 +1,9 @@
-# 数据保存指南 / Data Storage Guide
+# 数据保存指南
 
 
 ### 💾 数据保存
 
-MediaCrawler 支持多种数据存储方式，您可以根据需求选择最适合的方案：
+MediaRadar 支持多种数据存储方式，您可以根据需求选择最适合的方案：
 
 #### 存储方式
 
@@ -65,7 +65,6 @@ uv run main.py --platform xhs --lt qrcode --type search --save_data_option jsonl
 
 #### 详细文档
 
-- **Excel 导出详细指南**：查看 [Excel 导出指南](excel_export_guide.md)
 - **数据库配置**：参考 [常见问题](常见问题.md)
 
 ---

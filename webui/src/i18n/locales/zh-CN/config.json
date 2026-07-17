@@ -53,8 +53,10 @@
     "cookiesPlaceholder": "在此粘贴 Cookies...",
     "commentExtraction": "评论抓取",
     "subComments": "子评论",
-    "headlessMode": "无头模式",
-    "headlessModeHint": "无 GUI 运行浏览器"
+    "browserMode": "浏览器模式",
+    "browserModeHint": "选择是否显示浏览器窗口",
+    "headfulMode": "有头模式（推荐）",
+    "headlessMode": "无头模式"
   },
   "button": {
     "initiateScan": "开始爬虫",

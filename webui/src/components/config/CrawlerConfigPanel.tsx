@@ -57,6 +57,64 @@ type ToggleCardProps = {
   onCheckedChange: (checked: boolean) => void
 }
 
+type BrowserModeCardProps = {
+  headless: boolean
+  disabled: boolean
+  onModeChange: (headless: boolean) => void
+}
+
+function BrowserModeCard({ headless, disabled, onModeChange }: BrowserModeCardProps) {
+  const { t } = useTranslation('config')
+
+  return (
+    <div
+      className={`min-h-[74px] rounded-lg border border-cyber-border-subtle/60 bg-cyber-bg-tertiary/10 p-3 transition-colors ${
+        disabled ? 'opacity-45' : 'hover:border-cyber-border-default'
+      }`}
+    >
+      <div className="flex items-start gap-3">
+        <Monitor className="mt-0.5 h-4 w-4 flex-shrink-0 text-cyber-neon-cyan" />
+        <div className="min-w-0">
+          <p className="text-xs font-mono font-medium text-cyber-text-primary">
+            {t('field.browserMode')}
+          </p>
+          <p className="mt-1 text-[9px] leading-snug text-cyber-text-muted">
+            {t('field.browserModeHint')}
+          </p>
+        </div>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-1 rounded-md bg-cyber-bg-primary/50 p-1">
+        <button
+          type="button"
+          aria-pressed={!headless}
+          disabled={disabled}
+          onClick={() => onModeChange(false)}
+          className={`rounded px-2 py-1.5 text-[10px] font-mono transition-colors ${
+            !headless
+              ? 'bg-cyber-neon-cyan/15 text-cyber-neon-cyan ring-1 ring-cyber-neon-cyan/35'
+              : 'text-cyber-text-muted hover:text-cyber-text-secondary'
+          } disabled:cursor-not-allowed`}
+        >
+          {t('field.headfulMode')}
+        </button>
+        <button
+          type="button"
+          aria-pressed={headless}
+          disabled={disabled}
+          onClick={() => onModeChange(true)}
+          className={`rounded px-2 py-1.5 text-[10px] font-mono transition-colors ${
+            headless
+              ? 'bg-cyber-neon-cyan/15 text-cyber-neon-cyan ring-1 ring-cyber-neon-cyan/35'
+              : 'text-cyber-text-muted hover:text-cyber-text-secondary'
+          } disabled:cursor-not-allowed`}
+        >
+          {t('field.headlessMode')}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function ToggleCard({
   title,
   description,
@@ -166,13 +224,10 @@ export function CrawlerConfigPanel() {
               </Field>
             )}
 
-            <ToggleCard
-              title={t('field.headlessMode')}
-              description={t('field.headlessModeHint')}
-              icon={Monitor}
-              checked={config.headless}
+            <BrowserModeCard
+              headless={config.headless}
               disabled={isDisabled}
-              onCheckedChange={(checked) => updateConfig({ headless: checked })}
+              onModeChange={(headless) => updateConfig({ headless })}
             />
             <ToggleCard
               title="循环执行"

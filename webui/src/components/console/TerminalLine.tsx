@@ -34,11 +34,11 @@ const levelConfig: Record<string, { text: string; bg: string; glow: string }> = 
 }
 
 const levelIcons: Record<string, string> = {
-  info: 'DATA',
-  success: 'OK',
-  warning: 'WARN',
-  error: 'ERR',
-  debug: 'DBG',
+  info: '信息',
+  success: '成功',
+  warning: '警告',
+  error: '错误',
+  debug: '调试',
 }
 
 const mediaRadarLogPrefix = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\s+MediaRadar\s+(?:DEBUG|INFO|WARNING|ERROR|CRITICAL)\s+/

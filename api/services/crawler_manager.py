@@ -17,6 +17,7 @@
 # 使用本代码即表示您同意遵守上述原则和LICENSE中的所有条款。
 
 import asyncio
+import json
 import subprocess
 import signal
 import os
@@ -156,6 +157,9 @@ class CrawlerTask:
         while True:
             # Create a run record
             config_data = self.config.model_dump(mode="json")
+            # Authentication secrets are runtime-only and must not be persisted
+            # in analytics history.
+            config_data["cookies"] = ""
             run_id = analytics_repository.create_run(config_data)
             self.current_run_id = run_id
             self.started_at = datetime.now()
@@ -169,23 +173,40 @@ class CrawlerTask:
                 self.baseline_fingerprints = {}
 
             cmd = manager._build_command(self.config)
-            self._log(f"Starting crawler cycle (platform: {self.platform}, run_id: {run_id[:8]}): {' '.join(cmd)}", "info", manager)
+            safe_cmd = manager._redact_command(cmd)
+            self._log(f"Starting crawler cycle (platform: {self.platform}, run_id: {run_id[:8]}): {' '.join(safe_cmd)}", "info", manager)
 
             try:
+                process_env = {
+                    **os.environ,
+                    "PYTHONUNBUFFERED": "1",
+                    "MEDIARADAR_RUN_ID": run_id,
+                }
+                if self.config.cookies:
+                    process_env["MEDIARADAR_COOKIES_STDIN"] = "1"
+
                 self.process = subprocess.Popen(
                     cmd,
+                    stdin=subprocess.PIPE if self.config.cookies else subprocess.DEVNULL,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     text=True,
                     encoding='utf-8',
                     bufsize=1,
                     cwd=str(manager._project_root),
-                    env={
-                        **os.environ,
-                        "PYTHONUNBUFFERED": "1",
-                        "MEDIARADAR_RUN_ID": run_id,
-                    }
+                    env=process_env,
                 )
+
+                if self.config.cookies and self.process.stdin:
+                    try:
+                        self.process.stdin.write(json.dumps(self.config.cookies) + "\n")
+                        self.process.stdin.flush()
+                    except (BrokenPipeError, OSError) as error:
+                        self.process.kill()
+                        raise RuntimeError("Failed to send cookies to crawler process") from error
+                    finally:
+                        self.process.stdin.close()
+
                 self.status = "running"
                 self._log(f"Crawler process started for platform: {self.platform}", "success", manager)
                 
@@ -291,6 +312,18 @@ class CrawlerManager:
             return "debug"
         return "info"
 
+    @staticmethod
+    def _redact_command(cmd: list[str]) -> list[str]:
+        """Return a log-safe command without authentication secrets."""
+        safe_cmd = list(cmd)
+        try:
+            cookie_index = safe_cmd.index("--cookies")
+            if cookie_index + 1 < len(safe_cmd):
+                safe_cmd[cookie_index + 1] = "[REDACTED]"
+        except ValueError:
+            pass
+        return safe_cmd
+
     async def start(self, config: CrawlerStartRequest) -> bool:
         async with self._lock:
             platform = config.platform.value
@@ -384,9 +417,6 @@ class CrawlerManager:
 
         if config.max_comments_count is not None:
             cmd.extend(["--max_comments_count_singlenotes", str(config.max_comments_count)])
-
-        if config.cookies:
-            cmd.extend(["--cookies", config.cookies])
 
         cmd.extend(["--headless", "true" if config.headless else "false"])
 

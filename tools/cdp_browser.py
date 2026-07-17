@@ -25,7 +25,7 @@ import httpx
 import signal
 import atexit
 from typing import Optional, Dict, Any
-from playwright.async_api import Browser, BrowserContext, Playwright
+from playwright.async_api import Browser, BrowserContext, Page, Playwright
 
 import config
 from tools.browser_launcher import BrowserLauncher
@@ -43,6 +43,27 @@ class CDPBrowserManager:
         self.browser_context: Optional[BrowserContext] = None
         self.debug_port: Optional[int] = None
         self._cleanup_registered = False
+        self._owned_pages: list[Page] = []
+        self._page_init_scripts: list[Dict[str, str]] = []
+
+    # Each platform runs in its own process and can start at the same time from
+    # the Web UI.  Giving every platform a separate port range avoids the
+    # check-then-bind race where two processes both selected (for example)
+    # port 9223 before either Chrome process had bound it.
+    _PLATFORM_PORT_OFFSETS = {
+        "xhs": 0,
+        "dy": 1,
+        "ks": 2,
+        "bili": 3,
+        "wb": 4,
+        "tieba": 5,
+        "zhihu": 6,
+    }
+
+    @classmethod
+    def _platform_port_range_start(cls) -> int:
+        offset = cls._PLATFORM_PORT_OFFSETS.get(config.PLATFORM, 0)
+        return config.CDP_DEBUG_PORT + offset * 100
 
     def _register_cleanup_handlers(self):
         """
@@ -113,7 +134,8 @@ class CDPBrowserManager:
             browser_path = await self._get_browser_path()
 
             # 2. Get available port
-            self.debug_port = self.launcher.find_available_port(config.CDP_DEBUG_PORT)
+            port_range_start = self._platform_port_range_start()
+            self.debug_port = self.launcher.find_available_port(port_range_start)
 
             # 3. Launch browser
             await self._launch_browser(browser_path, headless)
@@ -340,10 +362,18 @@ class CDPBrowserManager:
                         ws_url, timeout=config.BROWSER_LAUNCH_TIMEOUT * 1000
                     )
             else:
-                # For launched browser, get WebSocket URL first
-                ws_url = await self._get_browser_websocket_url(self.debug_port)
-                utils.logger.info(f"[CDPBrowserManager] Connecting to browser via CDP: {ws_url}")
-                self.browser = await playwright.chromium.connect_over_cdp(ws_url)
+                # Let Playwright discover the current WebSocket endpoint from
+                # the HTTP CDP endpoint.  This avoids racing with a stale
+                # browser UUID between /json/version and the WebSocket
+                # handshake on newly launched Chrome instances.
+                endpoint_url = f"http://127.0.0.1:{self.debug_port}"
+                utils.logger.info(
+                    f"[CDPBrowserManager] Connecting to browser via CDP: {endpoint_url}"
+                )
+                self.browser = await playwright.chromium.connect_over_cdp(
+                    endpoint_url,
+                    timeout=config.BROWSER_LAUNCH_TIMEOUT * 1000,
+                )
 
             if self.browser.is_connected():
                 utils.logger.info("[CDPBrowserManager] Successfully connected to browser")
@@ -401,7 +431,20 @@ class CDPBrowserManager:
         """
         Add anti-detection script
         """
-        if self.browser_context and os.path.exists(script_path):
+        if not os.path.exists(script_path):
+            return
+
+        # An existing Chrome context is shared with the user's tabs and with
+        # other crawler processes. Context-level scripts would leak into every
+        # subsequently opened tab, so inject them only into crawler-owned pages.
+        if config.CDP_CONNECT_EXISTING:
+            await self.add_page_init_script(path=script_path)
+            utils.logger.info(
+                f"[CDPBrowserManager] Queued page-scoped anti-detection script: {script_path}"
+            )
+            return
+
+        if self.browser_context:
             try:
                 await self.browser_context.add_init_script(path=script_path)
                 utils.logger.info(
@@ -409,6 +452,47 @@ class CDPBrowserManager:
                 )
             except Exception as e:
                 utils.logger.warning(f"[CDPBrowserManager] Failed to add anti-detection script: {e}")
+
+    async def new_page(self) -> Page:
+        """Create and track a page owned exclusively by this crawler."""
+        if not self.browser_context:
+            raise RuntimeError("Browser context is not initialized")
+
+        page = await self.browser_context.new_page()
+        await self.register_page(page)
+        return page
+
+    async def add_page_init_script(
+        self, *, script: Optional[str] = None, path: Optional[str] = None
+    ) -> None:
+        """Queue an init script for this crawler's current and future pages."""
+        if (script is None) == (path is None):
+            raise ValueError("Exactly one of script or path must be provided")
+
+        if script is not None:
+            script_options = {"script": script}
+        else:
+            assert path is not None
+            script_options = {"path": path}
+        if script_options not in self._page_init_scripts:
+            self._page_init_scripts.append(script_options)
+
+        for page in self._owned_pages:
+            if not page.is_closed():
+                await page.add_init_script(**script_options)
+
+    async def register_page(self, page: Page) -> None:
+        """Track a crawler-created page and apply page-scoped init scripts."""
+        if page not in self._owned_pages:
+            self._owned_pages.append(page)
+
+        for script_options in self._page_init_scripts:
+            try:
+                await page.add_init_script(**script_options)
+            except Exception as e:
+                utils.logger.warning(
+                    f"[CDPBrowserManager] Failed to add page init script: {e}"
+                )
 
     async def add_cookies(self, cookies: list):
         """
@@ -442,6 +526,32 @@ class CDPBrowserManager:
             force: Whether to force cleanup browser process (ignoring AUTO_CLOSE_BROWSER config)
         """
         try:
+            if config.CDP_CONNECT_EXISTING:
+                # The context and browser belong to the user and are shared by
+                # concurrent platform processes. Close only pages explicitly
+                # created by this crawler. Playwright shutdown will detach the
+                # CDP transport without terminating Chrome.
+                for page in reversed(self._owned_pages):
+                    try:
+                        if not page.is_closed():
+                            await page.close()
+                    except Exception as page_error:
+                        error_msg = str(page_error).lower()
+                        if "closed" not in error_msg and "disconnected" not in error_msg:
+                            utils.logger.warning(
+                                f"[CDPBrowserManager] Failed to close owned page: {page_error}"
+                            )
+
+                closed_count = len(self._owned_pages)
+                self._owned_pages.clear()
+                self.browser_context = None
+                self.browser = None
+                utils.logger.info(
+                    f"[CDPBrowserManager] Closed {closed_count} owned page(s); "
+                    "shared browser kept running"
+                )
+                return
+
             # Close browser context
             if self.browser_context:
                 try:
@@ -487,12 +597,8 @@ class CDPBrowserManager:
                 finally:
                     self.browser = None
 
-            # Close browser process (skip if connected to existing browser - we didn't launch it)
-            if config.CDP_CONNECT_EXISTING:
-                utils.logger.info(
-                    "[CDPBrowserManager] Connected to existing browser, skipping process cleanup"
-                )
-            elif force or config.AUTO_CLOSE_BROWSER:
+            # Close the browser process launched by this manager.
+            if force or config.AUTO_CLOSE_BROWSER:
                 # force=True means force close, ignoring AUTO_CLOSE_BROWSER config
                 # Used for handling abnormal exit or manual cleanup
                 if self.launcher and self.launcher.browser_process:

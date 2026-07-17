@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+import io
+import json
+import sys
+
 import pytest
 import config
 from unittest.mock import AsyncMock, patch
@@ -25,6 +29,22 @@ async def test_cmd_arg_crawler_max_notes_count():
     finally:
         config.CRAWLER_MAX_NOTES_COUNT = orig_notes
         config.CRAWLER_MAX_COMMENTS_COUNT_SINGLENOTES = orig_comments
+
+
+@pytest.mark.asyncio
+async def test_cmd_arg_reads_internal_cookies_from_stdin(monkeypatch):
+    original_cookies = config.COOKIES
+    cookies = "session=value with spaces; token=秘密"
+    monkeypatch.setenv("MEDIARADAR_COOKIES_STDIN", "1")
+    monkeypatch.setattr(sys, "stdin", io.StringIO(json.dumps(cookies) + "\n"))
+
+    try:
+        args = await parse_cmd(["--platform", "xhs"])
+        assert args.cookies == cookies
+        assert config.COOKIES == cookies
+    finally:
+        config.COOKIES = original_cookies
+
 
 def test_crawler_manager_build_command():
     cm = CrawlerManager()
@@ -73,6 +93,18 @@ def test_crawler_manager_build_command():
     keywords_index = empty_cmd.index("--keywords")
     assert empty_cmd[keywords_index + 1] == ""
 
+    # Authentication secrets are sent over stdin by the process manager and
+    # must never be visible in the child process argument list.
+    cookie_request = CrawlerStartRequest(
+        platform=PlatformEnum.XHS,
+        login_type=LoginTypeEnum.COOKIE,
+        cookies="session=top-secret",
+    )
+    cookie_cmd = cm._build_command(cookie_request)
+    assert "--cookies" not in cookie_cmd
+    assert "session=top-secret" not in cookie_cmd
+
+
 def test_api_start_crawler_with_limits():
     client = TestClient(app)
 
@@ -92,15 +124,16 @@ def test_api_start_crawler_with_limits():
         assert response.status_code == 200
         assert response.json() == {
             "status": "ok",
-            "message": "Crawler started successfully",
+            "message": "Crawler for xhs started successfully",
             "run_id": None,
         }
 
         mock_start.assert_called_once()
         called_request = mock_start.call_args[0][0]
         assert called_request.platform == PlatformEnum.XHS
-        assert called_request.max_notes_count == 50
-        assert called_request.max_comments_count == 5
+    assert called_request.max_notes_count == 50
+    assert called_request.max_comments_count == 5
+
 
 def test_api_start_crawler_without_limits():
     client = TestClient(app)

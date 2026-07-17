@@ -23,6 +23,8 @@ from __future__ import annotations
 
 import sys
 import re
+import json
+import os
 from enum import Enum
 from types import SimpleNamespace
 from typing import Iterable, Optional, Sequence, Type, TypeVar
@@ -116,6 +118,31 @@ def _normalize_argv(argv: Optional[Sequence[str]]) -> Iterable[str]:
     if argv is None:
         return list(sys.argv[1:])
     return list(argv)
+
+
+def _read_internal_cookies_from_stdin() -> Optional[str]:
+    """Read cookies sent privately by the WebUI worker process.
+
+    Hand-written CLI invocations continue to use ``--cookies``.  The API sets
+    the marker below and sends a JSON string over stdin so authentication data
+    is not exposed in the child process command line.
+    """
+
+    if os.environ.get("MEDIARADAR_COOKIES_STDIN") != "1":
+        return None
+
+    payload = sys.stdin.readline()
+    if not payload:
+        raise RuntimeError("Cookie input was requested but stdin was empty")
+
+    try:
+        cookies = json.loads(payload)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("Cookie input from stdin is not valid JSON") from exc
+
+    if not isinstance(cookies, str):
+        raise RuntimeError("Cookie input from stdin must be a JSON string")
+    return cookies
 
 
 def _inject_init_db_default(args: Sequence[str]) -> list[str]:
@@ -426,6 +453,11 @@ async def parse_cmd(argv: Optional[Sequence[str]] = None):
         result = command.main(args=cli_args, standalone_mode=False)
         if isinstance(result, int):  # help/options handled by Typer; propagate exit code
             raise SystemExit(result)
+
+        stdin_cookies = _read_internal_cookies_from_stdin()
+        if stdin_cookies is not None:
+            config.COOKIES = stdin_cookies
+            result.cookies = stdin_cookies
         return result
     except typer.Exit as exc:  # pragma: no cover - CLI exit paths
         raise SystemExit(exc.exit_code) from exc

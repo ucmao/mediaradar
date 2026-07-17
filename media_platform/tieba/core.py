@@ -103,7 +103,11 @@ class TieBaCrawler(AbstractCrawler):
             # Inject anti-detection scripts - for Baidu's special detection
             await self._inject_anti_detection_scripts()
 
-            self.context_page = await self.browser_context.new_page()
+            self.context_page = (
+                await self.cdp_manager.new_page()
+                if self.cdp_manager
+                else await self.browser_context.new_page()
+            )
 
             # First visit Baidu homepage, then click Tieba link to avoid triggering security verification
             await self._navigate_to_tieba_via_baidu()
@@ -462,6 +466,8 @@ class TieBaCrawler(AbstractCrawler):
 
                 # Get newly opened page
                 new_page = await new_page_info.value
+                if self.cdp_manager:
+                    await self.cdp_manager.register_page(new_page)
                 await new_page.wait_for_load_state("domcontentloaded")
 
                 # Close old Baidu homepage
@@ -541,7 +547,10 @@ class TieBaCrawler(AbstractCrawler):
         console.log('[Anti-Detection] Scripts injected successfully');
         """
 
-        await self.browser_context.add_init_script(anti_detection_js)
+        if self.cdp_manager and config.CDP_CONNECT_EXISTING:
+            await self.cdp_manager.add_page_init_script(script=anti_detection_js)
+        else:
+            await self.browser_context.add_init_script(anti_detection_js)
         utils.logger.info("[TieBaCrawler] Anti-detection scripts injected")
 
     async def create_tieba_client(
@@ -664,8 +673,12 @@ class TieBaCrawler(AbstractCrawler):
             return browser_context
 
         except Exception as e:
-            utils.logger.error(f"[TieBaCrawler] CDP mode launch failed, falling back to standard mode: {e}")
+            utils.logger.error(f"[TieBaCrawler] CDP mode launch failed: {e}")
+            if config.CDP_CONNECT_EXISTING:
+                self.cdp_manager = None
+                raise
             # Fall back to standard mode
+            self.cdp_manager = None
             chromium = playwright.chromium
             return await self.launch_browser(
                 chromium, playwright_proxy, user_agent, headless

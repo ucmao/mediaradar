@@ -31,18 +31,19 @@ function App() {
 
       {/* Main Area */}
       {activeView === 'crawler' ? (
-        <div className="flex-1 flex flex-col gap-3 p-4 overflow-y-auto min-h-0">
-          {/* Global targets and primary action */}
-          <div className="flex-shrink-0">
-            <CrawlerSearchHeader />
-          </div>
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 xl:overflow-hidden">
+          <div className="grid min-h-full grid-cols-1 gap-3 xl:h-full xl:min-h-0 xl:grid-cols-[340px_minmax(0,1fr)]">
+            <CrawlerConfigPanel />
 
-          {/* One shared configuration for every selected platform */}
-          <CrawlerConfigPanel />
+            <div className="flex min-h-[620px] min-w-0 flex-col gap-3 xl:min-h-0">
+              <div className="flex-shrink-0">
+                <CrawlerSearchHeader />
+              </div>
 
-          {/* Platform-specific status and logs */}
-          <div className="flex-1 min-h-[300px]">
-            <MainContent />
+              <div className="min-h-[360px] flex-1 xl:min-h-0">
+                <MainContent />
+              </div>
+            </div>
           </div>
         </div>
       ) : (

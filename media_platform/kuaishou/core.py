@@ -93,7 +93,11 @@ class KuaishouCrawler(AbstractCrawler):
                 await self.browser_context.add_init_script(path="libs/stealth.min.js")
 
 
-            self.context_page = await self.browser_context.new_page()
+            self.context_page = (
+                await self.cdp_manager.new_page()
+                if self.cdp_manager
+                else await self.browser_context.new_page()
+            )
             await self.context_page.goto(f"{self.index_url}?isHome=1")
 
             # Create a client to interact with the kuaishou website.
@@ -385,9 +389,13 @@ class KuaishouCrawler(AbstractCrawler):
 
         except Exception as e:
             utils.logger.error(
-                f"[KuaishouCrawler] CDP mode launch failed, fallback to standard mode: {e}"
+                f"[KuaishouCrawler] CDP mode launch failed: {e}"
             )
+            if config.CDP_CONNECT_EXISTING:
+                self.cdp_manager = None
+                raise
             # Fallback to standard mode
+            self.cdp_manager = None
             chromium = playwright.chromium
             return await self.launch_browser(
                 chromium, playwright_proxy, user_agent, headless

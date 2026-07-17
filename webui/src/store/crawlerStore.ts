@@ -22,6 +22,7 @@ interface CrawlerState {
 
   // Config template
   config: CrawlerConfig
+  platformCookies: { [platform: string]: string }
 
   // Actions
   setStatus: (platform: string, status: 'idle' | 'running' | 'stopping' | 'error') => void
@@ -32,6 +33,7 @@ interface CrawlerState {
   clearLogs: (platform: string) => void
   restoreLogs: (platform: string) => void
   updateConfig: (config: Partial<CrawlerConfig>) => void
+  setPlatformCookie: (platform: string, cookies: string) => void
   setSelectedPlatforms: (platforms: string[]) => void
   setActivePlatformTab: (platform: string) => void
   reset: (platform?: string) => void
@@ -90,6 +92,7 @@ export const useCrawlerStore = create<CrawlerState>((set, get) => ({
   selectedPlatforms: ['bili'],
   activePlatformTab: 'bili',
   config: defaultConfig,
+  platformCookies: {},
 
   setStatus: (platform, status) => {
     set((state) => {
@@ -223,6 +226,11 @@ export const useCrawlerStore = create<CrawlerState>((set, get) => ({
   updateConfig: (config) =>
     set((state) => ({
       config: { ...state.config, ...config },
+    })),
+
+  setPlatformCookie: (platform, cookies) =>
+    set((state) => ({
+      platformCookies: { ...state.platformCookies, [platform]: cookies },
     })),
 
   setSelectedPlatforms: (selectedPlatforms) => {

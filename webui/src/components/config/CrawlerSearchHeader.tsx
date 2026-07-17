@@ -1,4 +1,4 @@
-import { useState, KeyboardEvent } from 'react'
+import { useEffect, useState, KeyboardEvent } from 'react'
 import {
   BookOpen,
   Music,
@@ -20,6 +20,9 @@ import { Button } from '@/components/ui/button'
 import { useCrawlerStore } from '@/store/crawlerStore'
 import { usePlatforms, useStartCrawler, useStopCrawler } from '@/hooks/useCrawler'
 import { toast } from 'sonner'
+import { ParsedIdList } from './ParsedIdList'
+import { detectPlatform } from '@/lib/urlParser'
+import { useTranslation } from 'react-i18next'
 
 const ICON_MAP: { [key: string]: any } = {
   'book-open': BookOpen,
@@ -31,18 +34,42 @@ const ICON_MAP: { [key: string]: any } = {
   'help-circle': HelpCircle,
 }
 
+const PLATFORM_LABELS: Record<string, string> = {
+  xhs: '小红书',
+  dy: '抖音',
+  ks: '快手',
+  bili: '哔哩哔哩',
+  wb: '微博',
+  tieba: '百度贴吧',
+  zhihu: '知乎',
+}
+
 export function CrawlerSearchHeader() {
+  const { t } = useTranslation('config')
   const config = useCrawlerStore((state) => state.config)
   const updateConfig = useCrawlerStore((state) => state.updateConfig)
   const statuses = useCrawlerStore((state) => state.statuses)
   const selectedPlatforms = useCrawlerStore((state) => state.selectedPlatforms)
   const setSelectedPlatforms = useCrawlerStore((state) => state.setSelectedPlatforms)
+  const platformCookies = useCrawlerStore((state) => state.platformCookies)
 
   const { data: platforms } = usePlatforms()
   const { mutate: startCrawler } = useStartCrawler()
   const { mutate: stopCrawler } = useStopCrawler()
 
   const [inputValue, setInputValue] = useState('')
+  const isDisabled = Object.values(statuses).some((status) => status === 'running' || status === 'stopping')
+  const targetValue = config.crawler_type === 'detail' ? config.specified_ids : config.creator_ids
+  const idParserPlatform = selectedPlatforms[0] || ''
+
+  useEffect(() => {
+    if (config.crawler_type === 'search') return
+    const detectedPlatform = detectPlatform(targetValue)
+    const nextPlatforms = detectedPlatform ? [detectedPlatform] : []
+    if (selectedPlatforms.join(',') !== nextPlatforms.join(',')) {
+      setSelectedPlatforms(nextPlatforms)
+    }
+  }, [config.crawler_type, targetValue, selectedPlatforms, setSelectedPlatforms])
 
   // Keywords conversion
   const keywordsList = config.keywords
@@ -100,13 +127,27 @@ export function CrawlerSearchHeader() {
     }
 
     if (!finalKeywords && config.crawler_type === 'search') {
-      toast.error('Please enter at least one keyword')
+      toast.error('请至少输入一个关键词')
+      return
+    }
+
+    const targetValue = config.crawler_type === 'detail' ? config.specified_ids : config.creator_ids
+    if (config.crawler_type !== 'search' && !targetValue.trim()) {
+      toast.error('请先粘贴需要采集的平台链接')
       return
     }
 
     if (selectedPlatforms.length === 0) {
-      toast.error('Please select at least one platform')
+      toast.error(config.crawler_type === 'search' ? '请至少选择一个平台' : '无法识别平台，请粘贴完整的平台链接')
       return
+    }
+
+    if (config.login_type === 'cookie') {
+      const missingCookiePlatform = selectedPlatforms.find((platform) => !platformCookies[platform]?.trim())
+      if (missingCookiePlatform) {
+        toast.error(`请填写 ${PLATFORM_LABELS[missingCookiePlatform] || missingCookiePlatform} 的 Cookie`)
+        return
+      }
     }
 
     selectedPlatforms.forEach((p) => {
@@ -115,6 +156,7 @@ export function CrawlerSearchHeader() {
           ...config,
           platform: p,
           keywords: finalKeywords,
+          cookies: config.login_type === 'cookie' ? platformCookies[p] || '' : '',
         })
       }
     })
@@ -134,7 +176,7 @@ export function CrawlerSearchHeader() {
         <div className="space-y-2">
           <label className="text-xs text-cyber-text-secondary font-mono tracking-wider flex items-center gap-1.5 uppercase">
             <Zap className="w-3.5 h-3.5 text-cyber-neon-cyan animate-pulse" />
-            {config.crawler_type === 'search' ? 'Scan Target Keywords' : 'Scan Targets Configuration'}
+            {config.crawler_type === 'search' ? '扫描目标关键词' : '扫描目标配置'}
           </label>
           
           {config.crawler_type === 'search' ? (
@@ -144,13 +186,45 @@ export function CrawlerSearchHeader() {
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Type keyword and press Enter or comma..."
+                placeholder="输入关键词后按回车键或逗号添加..."
                 className="pl-12 pr-4 h-12 text-sm font-mono bg-cyber-bg-tertiary/20 border-cyber-border-default/60 focus:border-cyber-neon-cyan focus:ring-1 focus:ring-cyber-neon-cyan shadow-inner rounded-xl transition-all"
               />
             </div>
           ) : (
-            <div className="h-12 flex items-center px-4 rounded-xl border border-dashed border-cyber-border-default/60 bg-cyber-bg-tertiary/10 text-xs font-mono text-cyber-text-muted">
-              当前模式：{config.crawler_type === 'detail' ? '指定内容详情' : '创作者主页'}。请在下方统一采集参数中填写目标 ID。
+            <div className="space-y-2">
+              <div className="relative">
+                <textarea
+                  value={targetValue}
+                  onChange={(event) => updateConfig(config.crawler_type === 'detail'
+                    ? { specified_ids: event.target.value }
+                    : { creator_ids: event.target.value })}
+                  disabled={isDisabled}
+                  placeholder={config.crawler_type === 'detail'
+                    ? t('field.specifiedIdsPlaceholder.default')
+                    : t('field.creatorIdsPlaceholder.default')}
+                  className="min-h-[88px] w-full resize-y rounded-xl border border-cyber-border-default/60 bg-cyber-bg-tertiary/20 px-4 py-3 pr-32 text-xs font-mono text-cyber-text-primary placeholder:text-cyber-text-muted focus-visible:border-cyber-neon-cyan focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-cyber-neon-cyan disabled:cursor-not-allowed disabled:opacity-50"
+                />
+                {selectedPlatforms[0] ? (
+                  <span className="absolute right-3 top-3 rounded-full border border-cyber-neon-cyan/30 bg-cyber-bg-panel px-3 py-1 text-[10px] font-mono text-cyber-neon-cyan">
+                    {PLATFORM_LABELS[selectedPlatforms[0]] || selectedPlatforms[0]}
+                  </span>
+                ) : (
+                  <span className="absolute right-3 top-3 rounded-full border border-cyber-neon-orange/30 bg-cyber-bg-panel px-3 py-1 text-[10px] font-mono text-cyber-neon-orange">
+                    等待识别
+                  </span>
+                )}
+              </div>
+              <ParsedIdList
+                value={targetValue}
+                platform={idParserPlatform}
+                type={config.crawler_type === 'detail' ? 'detail' : 'creator'}
+                disabled={isDisabled}
+              />
+              {selectedPlatforms.includes('xhs') && config.crawler_type === 'detail' && (
+                <div className="rounded-lg border border-cyber-neon-orange/30 bg-cyber-neon-orange/5 p-2 text-[10px] font-mono text-cyber-neon-orange">
+                  {t('warning.xhsToken')}
+                </div>
+              )}
             </div>
           )}
 
@@ -185,7 +259,7 @@ export function CrawlerSearchHeader() {
               className="h-12 px-8 bg-cyber-neon-pink text-white font-mono font-bold text-sm tracking-widest rounded-xl hover:bg-cyber-neon-pink/90 hover:shadow-glow-pink-sm transition-all flex items-center gap-2"
             >
               <Square className="w-4 h-4 fill-white" />
-              {isAnyStopping ? 'STOPPING...' : 'TERMINATE SCAN'}
+              {isAnyStopping ? '正在停止...' : '终止扫描'}
             </Button>
           ) : (
             <Button
@@ -194,16 +268,16 @@ export function CrawlerSearchHeader() {
               className="h-12 px-8 bg-cyber-neon-cyan text-cyber-bg-primary font-mono font-bold text-sm tracking-widest rounded-xl hover:bg-cyber-neon-cyan/90 hover:shadow-glow-cyan-sm transition-all flex items-center gap-2"
             >
               <Play className="w-4 h-4 fill-cyber-bg-primary" />
-              INITIATE SCAN
+              开始扫描
             </Button>
           )}
         </div>
       </div>
 
-      {/* Platforms Multi-Select Cards */}
-      <div className="space-y-2.5">
+      {/* Only keyword search can intentionally fan out to multiple platforms. */}
+      {config.crawler_type === 'search' && <div className="space-y-2.5">
         <label className="text-xs text-cyber-text-secondary font-mono tracking-wider uppercase">
-          Target Media Channels (Multi-select)
+          目标媒体渠道（多选）
         </label>
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
           {platforms?.map((platform) => {
@@ -239,13 +313,13 @@ export function CrawlerSearchHeader() {
                 
                 {/* Micro-status label */}
                 {isRunning && (
-                  <span className="text-[9px] text-cyber-neon-green mt-1 font-bold tracking-tighter uppercase animate-pulse">Running</span>
+                  <span className="text-[9px] text-cyber-neon-green mt-1 font-bold tracking-tighter uppercase animate-pulse">运行中</span>
                 )}
               </button>
             )
           })}
         </div>
-      </div>
+      </div>}
     </div>
   )
 }

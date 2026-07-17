@@ -196,6 +196,14 @@ class BrowserLauncher:
 
         start_time = time.time()
         while time.time() - start_time < timeout:
+            # A competing process may have taken the port after it was checked.
+            # Do not mistake that process for the Chrome instance we launched.
+            if self.browser_process and self.browser_process.poll() is not None:
+                utils.logger.error(
+                    f"[BrowserLauncher] Browser process exited with code "
+                    f"{self.browser_process.returncode} before CDP became ready"
+                )
+                return False
             try:
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                     s.settimeout(1)

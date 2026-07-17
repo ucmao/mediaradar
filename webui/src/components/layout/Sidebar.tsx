@@ -26,7 +26,7 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
         <div className="flex items-center gap-3">
           <Bug className="w-5 h-5 text-cyber-neon-cyan" />
           <span className="hidden font-mono text-sm font-bold tracking-wider text-cyber-text-primary sm:inline">
-            科莱特三组
+            科莱特三组Up
           </span>
           {isRunning && (
             <Badge variant="running" className="text-[10px]">

@@ -5,6 +5,25 @@ export interface ParsedId {
   isValid: boolean
 }
 
+const platformDomains: Record<string, string[]> = {
+  xhs: ['xiaohongshu.com', 'xhslink.com'],
+  dy: ['douyin.com', 'iesdouyin.com'],
+  ks: ['kuaishou.com'],
+  bili: ['bilibili.com', 'b23.tv'],
+  wb: ['weibo.com', 'weibo.cn'],
+  tieba: ['tieba.baidu.com'],
+  zhihu: ['zhihu.com'],
+}
+
+export function detectPlatform(input: string): string | null {
+  const normalized = input.toLowerCase()
+  const matches = Object.entries(platformDomains)
+    .filter(([, domains]) => domains.some((domain) => normalized.includes(domain)))
+    .map(([platform]) => platform)
+
+  return matches.length === 1 ? matches[0] : null
+}
+
 // URL patterns for different platforms
 const platformPatterns: Record<string, {
   video: RegExp[]

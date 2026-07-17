@@ -152,7 +152,7 @@ class DouYinLogin(AbstractLogin):
         cache_client = CacheFactory.create_cache(config.CACHE_TYPE_MEMORY)
         max_get_sms_code_time = 60 * 2  # Maximum time to get verification code is 2 minutes
         while max_get_sms_code_time > 0:
-            utils.logger.info(f"[DouYinLogin.login_by_mobile] get douyin sms code from redis remaining time {max_get_sms_code_time}s ...")
+            utils.logger.info(f"[DouYinLogin.login_by_mobile] get SMS code from cache, remaining time {max_get_sms_code_time}s ...")
             await asyncio.sleep(1)
             sms_code_key = f"dy_{self.login_phone}"
             sms_code_value = cache_client.get(sms_code_key)

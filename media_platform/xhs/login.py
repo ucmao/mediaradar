@@ -131,7 +131,7 @@ class XiaoHongShuLogin(AbstractLogin):
         max_get_sms_code_time = 60 * 2  # Maximum time to get verification code is 2 minutes
         no_logged_in_session = ""
         while max_get_sms_code_time > 0:
-            utils.logger.info(f"[XiaoHongShuLogin.login_by_mobile] get sms code from redis remaining time {max_get_sms_code_time}s ...")
+            utils.logger.info(f"[XiaoHongShuLogin.login_by_mobile] get SMS code from cache, remaining time {max_get_sms_code_time}s ...")
             await asyncio.sleep(1)
             sms_code_key = f"xhs_{self.login_phone}"
             sms_code_value = cache_client.get(sms_code_key)

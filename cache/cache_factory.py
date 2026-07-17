@@ -42,8 +42,4 @@ class CacheFactory:
         if cache_type == 'memory':
             from .local_cache import ExpiringLocalCache
             return ExpiringLocalCache(*args, **kwargs)
-        elif cache_type == 'redis':
-            from .redis_cache import RedisCache
-            return RedisCache()
-        else:
-            raise ValueError(f'Unknown cache type: {cache_type}')
+        raise ValueError(f'Unknown cache type: {cache_type}')

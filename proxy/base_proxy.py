@@ -53,11 +53,11 @@ class ProxyProvider(ABC):
 
 class IpCache:
     def __init__(self):
-        self.cache_client: AbstractCache = CacheFactory.create_cache(cache_type=config.CACHE_TYPE_REDIS)
+        self.cache_client: AbstractCache = CacheFactory.create_cache(cache_type=config.CACHE_TYPE_MEMORY)
 
     def set_ip(self, ip_key: str, ip_value_info: str, ex: int):
         """
-        Set IP with expiration time, Redis is responsible for deletion after expiration
+        Store an IP in the process-local cache with an expiration time.
         :param ip_key:
         :param ip_value_info:
         :param ex:
@@ -67,7 +67,7 @@ class IpCache:
 
     def load_all_ip(self, proxy_brand_name: str) -> List[IpInfoModel]:
         """
-        Load all unexpired IP information from Redis
+        Load all unexpired IP information from the process-local cache.
         :param proxy_brand_name: Proxy provider name
         :return:
         """
@@ -80,5 +80,5 @@ class IpCache:
                     continue
                 all_ip_list.append(IpInfoModel(**json.loads(ip_value)))
         except Exception as e:
-            utils.logger.error("[IpCache.load_all_ip] get ip err from redis db", e)
+            utils.logger.error("[IpCache.load_all_ip] get cached IP error", e)
         return all_ip_list

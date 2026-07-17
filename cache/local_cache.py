@@ -24,7 +24,6 @@
 # @Time    : 2024/6/2 11:05
 # @Desc    : Local cache
 
-import asyncio
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -41,17 +40,6 @@ class ExpiringLocalCache(AbstractCache):
         """
         self._cron_interval = cron_interval
         self._cache_container: Dict[str, Tuple[Any, float]] = {}
-        self._cron_task: Optional[asyncio.Task] = None
-        # Start scheduled cleanup task
-        self._schedule_clear()
-
-    def __del__(self):
-        """
-        Destructor function, cleanup scheduled task
-        :return:
-        """
-        if self._cron_task is not None:
-            self._cron_task.cancel()
 
     def get(self, key: str) -> Optional[Any]:
         """
@@ -78,6 +66,7 @@ class ExpiringLocalCache(AbstractCache):
         :param expire_time:
         :return:
         """
+        self._clear()
         self._cache_container[key] = (value, time.time() + expire_time)
 
     def keys(self, pattern: str) -> List[str]:
@@ -86,6 +75,7 @@ class ExpiringLocalCache(AbstractCache):
         :param pattern: Matching pattern
         :return:
         """
+        self._clear()
         if pattern == '*':
             return list(self._cache_container.keys())
 
@@ -95,37 +85,16 @@ class ExpiringLocalCache(AbstractCache):
 
         return [key for key in self._cache_container.keys() if pattern in key]
 
-    def _schedule_clear(self):
-        """
-        Start scheduled cleanup task
-        :return:
-        """
-
-        try:
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-
-        self._cron_task = loop.create_task(self._start_clear_cron())
-
     def _clear(self):
-        """
-        Clean up cache based on expiration time
-        :return:
-        """
-        for key, (value, expire_time) in self._cache_container.items():
-            if expire_time < time.time():
-                del self._cache_container[key]
-
-    async def _start_clear_cron(self):
-        """
-        Start scheduled cleanup task
-        :return:
-        """
-        while True:
-            self._clear()
-            await asyncio.sleep(self._cron_interval)
+        """Remove expired entries without requiring a background event loop."""
+        now = time.time()
+        expired_keys = [
+            key
+            for key, (_, expire_time) in self._cache_container.items()
+            if expire_time < now
+        ]
+        for key in expired_keys:
+            del self._cache_container[key]
 
 
 if __name__ == '__main__':

@@ -55,7 +55,7 @@ def extract_verification_code(message: str) -> str:
 @app.post("/")
 def receive_sms_notification(sms: SmsNotification):
     """
-    Receive SMS notification and send it to Redis.
+    Receive an SMS notification and place its code in the local cache.
     Args:
         sms:
             {
@@ -72,7 +72,7 @@ def receive_sms_notification(sms: SmsNotification):
     utils.logger.info(f"Received SMS notification: {sms.platform}, {sms.current_number}")
     sms_code = extract_verification_code(sms.sms_content)
     if sms_code:
-        # Save the verification code in Redis and set the expiration time to 3 minutes.
+        # Save the verification code in the local cache for 3 minutes.
         key = f"{sms.platform}_{sms.current_number}"
         cache_client.set(key, sms_code, expire_time=60 * 3)
 

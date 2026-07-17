@@ -17,10 +17,10 @@
 # 使用本代码即表示您同意遵守上述原则和LICENSE中的所有条款。
 
 import asyncio
-import json
 import subprocess
 import signal
 import os
+import sys
 from typing import Optional, List, Dict
 from datetime import datetime
 from pathlib import Path
@@ -172,9 +172,8 @@ class CrawlerTask:
             except Exception:
                 self.baseline_fingerprints = {}
 
-            cmd = manager._build_command(self.config)
-            safe_cmd = manager._redact_command(cmd)
-            self._log(f"Starting crawler cycle (platform: {self.platform}, run_id: {run_id[:8]}): {' '.join(safe_cmd)}", "info", manager)
+            cmd = manager._build_worker_command()
+            self._log(f"Starting crawler cycle (platform: {self.platform}, run_id: {run_id[:8]}): {' '.join(cmd)}", "info", manager)
 
             try:
                 process_env = {
@@ -182,12 +181,9 @@ class CrawlerTask:
                     "PYTHONUNBUFFERED": "1",
                     "MEDIARADAR_RUN_ID": run_id,
                 }
-                if self.config.cookies:
-                    process_env["MEDIARADAR_COOKIES_STDIN"] = "1"
-
                 self.process = subprocess.Popen(
                     cmd,
-                    stdin=subprocess.PIPE if self.config.cookies else subprocess.DEVNULL,
+                    stdin=subprocess.PIPE,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     text=True,
@@ -197,15 +193,21 @@ class CrawlerTask:
                     env=process_env,
                 )
 
-                if self.config.cookies and self.process.stdin:
+                if not self.process.stdin:
+                    self.process.kill()
+                    raise RuntimeError("Crawler worker stdin is unavailable")
+
+                try:
+                    self.process.stdin.write(self.config.model_dump_json())
+                    self.process.stdin.flush()
+                except (BrokenPipeError, OSError) as error:
+                    self.process.kill()
+                    raise RuntimeError("Failed to send configuration to crawler worker") from error
+                finally:
                     try:
-                        self.process.stdin.write(json.dumps(self.config.cookies) + "\n")
-                        self.process.stdin.flush()
-                    except (BrokenPipeError, OSError) as error:
-                        self.process.kill()
-                        raise RuntimeError("Failed to send cookies to crawler process") from error
-                    finally:
                         self.process.stdin.close()
+                    except OSError:
+                        pass
 
                 self.status = "running"
                 self._log(f"Crawler process started for platform: {self.platform}", "success", manager)
@@ -312,18 +314,6 @@ class CrawlerManager:
             return "debug"
         return "info"
 
-    @staticmethod
-    def _redact_command(cmd: list[str]) -> list[str]:
-        """Return a log-safe command without authentication secrets."""
-        safe_cmd = list(cmd)
-        try:
-            cookie_index = safe_cmd.index("--cookies")
-            if cookie_index + 1 < len(safe_cmd):
-                safe_cmd[cookie_index + 1] = "[REDACTED]"
-        except ValueError:
-            pass
-        return safe_cmd
-
     async def start(self, config: CrawlerStartRequest) -> bool:
         async with self._lock:
             platform = config.platform.value
@@ -391,36 +381,9 @@ class CrawlerManager:
             }
         }
 
-    def _build_command(self, config: CrawlerStartRequest) -> list:
-        cmd = ["uv", "run", "python", "main.py"]
-
-        cmd.extend(["--platform", config.platform.value])
-        cmd.extend(["--lt", config.login_type.value])
-        cmd.extend(["--type", config.crawler_type.value])
-        cmd.extend(["--save_data_option", "sqlite"])
-
-        if config.crawler_type.value == "search":
-            cmd.extend(["--keywords", config.keywords])
-        elif config.crawler_type.value == "detail" and config.specified_ids:
-            cmd.extend(["--specified_id", config.specified_ids])
-        elif config.crawler_type.value == "creator" and config.creator_ids:
-            cmd.extend(["--creator_id", config.creator_ids])
-
-        if config.start_page != 1:
-            cmd.extend(["--start", str(config.start_page)])
-
-        cmd.extend(["--get_comment", "true" if config.enable_comments else "false"])
-        cmd.extend(["--get_sub_comment", "true" if config.enable_sub_comments else "false"])
-
-        if config.max_notes_count is not None:
-            cmd.extend(["--crawler_max_notes_count", str(config.max_notes_count)])
-
-        if config.max_comments_count is not None:
-            cmd.extend(["--max_comments_count_singlenotes", str(config.max_comments_count)])
-
-        cmd.extend(["--headless", "true" if config.headless else "false"])
-
-        return cmd
+    @staticmethod
+    def _build_worker_command() -> list[str]:
+        return [sys.executable, "-m", "api.crawler_worker"]
 
 
 # Global singleton

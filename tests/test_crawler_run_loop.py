@@ -1,3 +1,4 @@
+import json
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -18,7 +19,22 @@ async def test_non_looping_task_runs_exactly_once():
     task = CrawlerTask("xhs", config)
     task._read_output = AsyncMock()
 
-    fake_process = type("FakeProcess", (), {})()
+    class RecordingStdin:
+        def __init__(self):
+            self.value = ""
+            self.closed = False
+
+        def write(self, value):
+            self.value += value
+
+        def flush(self):
+            pass
+
+        def close(self):
+            self.closed = True
+
+    fake_stdin = RecordingStdin()
+    fake_process = type("FakeProcess", (), {"stdin": fake_stdin})()
     with (
         patch(
             "api.services.crawler_manager.analytics_repository.create_run",
@@ -36,5 +52,8 @@ async def test_non_looping_task_runs_exactly_once():
         await task.run_loop(manager)
 
     popen.assert_called_once()
+    assert popen.call_args.args[0] == manager._build_worker_command()
+    assert json.loads(fake_stdin.value) == config.model_dump(mode="json")
+    assert fake_stdin.closed is True
     task._read_output.assert_awaited_once_with(manager)
     assert task.status == "idle"

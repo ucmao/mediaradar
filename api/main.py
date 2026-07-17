@@ -21,10 +21,8 @@ MediaRadar WebUI API Server
 Start command: uvicorn api.main:app --port 8080 --reload
 Or: python -m api.main
 """
-import asyncio
 import os
 import sys
-import subprocess
 from pathlib import Path
 import uvicorn
 from fastapi import FastAPI
@@ -34,7 +32,7 @@ from fastapi.responses import FileResponse
 
 from .routers import crawler_router, data_router, websocket_router
 
-# Project root directory (used for running subprocesses like uv run main.py)
+# Project root directory
 PROJECT_ROOT = Path(__file__).parent.parent
 
 app = FastAPI(
@@ -89,55 +87,23 @@ async def health_check():
 async def check_environment():
     """Check if MediaRadar environment is configured correctly"""
     try:
-        # Run uv run main.py --help command to check environment
-        # Use PROJECT_ROOT so it works regardless of where uvicorn was started
-        if sys.platform == "win32":
-            loop = asyncio.get_running_loop()
-            process = await loop.run_in_executor(
-                None,
-                lambda: subprocess.run(
-                    ["uv", "run", "main.py", "--help"],
-                    capture_output=True,
-                    timeout=30.0,
-                    cwd=str(PROJECT_ROOT)
-                )
-            )
-            stdout, stderr = process.stdout, process.stderr  # bytes
-        else:
-            process = await asyncio.create_subprocess_exec(
-                "uv", "run", "main.py", "--help",
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                cwd=str(PROJECT_ROOT)  # Project root directory
-            )
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(),
-                timeout=30.0  # 30 seconds timeout
-            )
-        if process.returncode == 0:
-            return {
-                "success": True,
-                "message": "MediaRadar environment configured correctly",
-                "output": stdout.decode("utf-8", errors="ignore")[:500]  # Truncate to first 500 characters
-            }
-        else:
-            error_msg = stderr.decode("utf-8", errors="ignore") or stdout.decode("utf-8", errors="ignore")
+        worker_path = PROJECT_ROOT / "api" / "crawler_worker.py"
+        if not worker_path.is_file():
             return {
                 "success": False,
                 "message": "Environment check failed",
-                "error": error_msg[:500]
+                "error": "Crawler worker entrypoint is missing",
             }
-    except asyncio.TimeoutError:
+
+        # Import the actual Web worker and browser dependency. This checks the
+        # same runtime used by crawler subprocesses without invoking the CLI.
+        from .crawler_worker import read_request  # noqa: F401
+        from playwright.async_api import async_playwright  # noqa: F401
+
         return {
-            "success": False,
-            "message": "Environment check timeout",
-            "error": "Command execution exceeded 30 seconds"
-        }
-    except FileNotFoundError:
-        return {
-            "success": False,
-            "message": "uv command not found",
-            "error": "Please ensure uv is installed and configured in system PATH"
+            "success": True,
+            "message": "MediaRadar environment configured correctly",
+            "output": f"Python {sys.version.split()[0]}; crawler worker ready",
         }
     except Exception as e:
         return {

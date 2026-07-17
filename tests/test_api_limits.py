@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-import io
-import json
 import sys
 
 import pytest
@@ -8,7 +6,7 @@ import config
 from unittest.mock import AsyncMock, patch
 from fastapi.testclient import TestClient
 from cmd_arg import parse_cmd
-from api.schemas import CrawlerStartRequest, PlatformEnum, LoginTypeEnum, CrawlerTypeEnum
+from api.schemas import PlatformEnum
 from api.services.crawler_manager import CrawlerManager
 from api.main import app
 
@@ -31,78 +29,17 @@ async def test_cmd_arg_crawler_max_notes_count():
         config.CRAWLER_MAX_COMMENTS_COUNT_SINGLENOTES = orig_comments
 
 
-@pytest.mark.asyncio
-async def test_cmd_arg_reads_internal_cookies_from_stdin(monkeypatch):
-    original_cookies = config.COOKIES
-    cookies = "session=value with spaces; token=秘密"
-    monkeypatch.setenv("MEDIARADAR_COOKIES_STDIN", "1")
-    monkeypatch.setattr(sys, "stdin", io.StringIO(json.dumps(cookies) + "\n"))
-
-    try:
-        args = await parse_cmd(["--platform", "xhs"])
-        assert args.cookies == cookies
-        assert config.COOKIES == cookies
-    finally:
-        config.COOKIES = original_cookies
-
-
-def test_crawler_manager_build_command():
+def test_crawler_manager_uses_fixed_worker_command():
     cm = CrawlerManager()
+    assert cm._build_worker_command() == [sys.executable, "-m", "api.crawler_worker"]
 
-    # 1. No max limits passed in API request
-    req1 = CrawlerStartRequest(
-        platform=PlatformEnum.XHS,
-        login_type=LoginTypeEnum.QRCODE,
-        crawler_type=CrawlerTypeEnum.SEARCH,
-        keywords="test",
-        max_notes_count=None,
-        max_comments_count=None
-    )
-    cmd1 = cm._build_command(req1)
-    # Check that the custom arguments are NOT present
-    assert "--crawler_max_notes_count" not in cmd1
-    assert "--max_comments_count_singlenotes" not in cmd1
 
-    # 2. Both limits passed in API request
-    req2 = CrawlerStartRequest(
-        platform=PlatformEnum.XHS,
-        login_type=LoginTypeEnum.QRCODE,
-        crawler_type=CrawlerTypeEnum.SEARCH,
-        keywords="test",
-        max_notes_count=50,
-        max_comments_count=5
-    )
-    cmd2 = cm._build_command(req2)
-    # Check that they are correctly added
-    assert "--crawler_max_notes_count" in cmd2
-    idx_notes = cmd2.index("--crawler_max_notes_count")
-    assert cmd2[idx_notes + 1] == "50"
+def test_environment_check_uses_web_worker_runtime():
+    response = TestClient(app).get("/api/env/check")
 
-    assert "--max_comments_count_singlenotes" in cmd2
-    idx_comments = cmd2.index("--max_comments_count_singlenotes")
-    assert cmd2[idx_comments + 1] == "5"
-
-    # Empty search keywords must be passed explicitly instead of falling back
-    # to the hard-coded CLI default.
-    empty_search = CrawlerStartRequest(
-        platform=PlatformEnum.XHS,
-        crawler_type=CrawlerTypeEnum.SEARCH,
-        keywords="",
-    )
-    empty_cmd = cm._build_command(empty_search)
-    keywords_index = empty_cmd.index("--keywords")
-    assert empty_cmd[keywords_index + 1] == ""
-
-    # Authentication secrets are sent over stdin by the process manager and
-    # must never be visible in the child process argument list.
-    cookie_request = CrawlerStartRequest(
-        platform=PlatformEnum.XHS,
-        login_type=LoginTypeEnum.COOKIE,
-        cookies="session=top-secret",
-    )
-    cookie_cmd = cm._build_command(cookie_request)
-    assert "--cookies" not in cookie_cmd
-    assert "session=top-secret" not in cookie_cmd
+    assert response.status_code == 200
+    assert response.json()["success"] is True
+    assert "crawler worker ready" in response.json()["output"]
 
 
 def test_api_start_crawler_with_limits():
@@ -131,8 +68,8 @@ def test_api_start_crawler_with_limits():
         mock_start.assert_called_once()
         called_request = mock_start.call_args[0][0]
         assert called_request.platform == PlatformEnum.XHS
-    assert called_request.max_notes_count == 50
-    assert called_request.max_comments_count == 5
+        assert called_request.max_notes_count == 50
+        assert called_request.max_comments_count == 5
 
 
 def test_api_start_crawler_without_limits():
